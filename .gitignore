@@ -1,0 +1,17 @@
+# Build folders
+Builds/
+x64/
+.vs/
+
+# Visual Studio files
+*.vcxproj.user
+*.sln
+*.vcxproj
+*.filters
+
+# Executables
+*.exe
+*.dll
+
+# Mac / Linux junk
+.DS_Store
