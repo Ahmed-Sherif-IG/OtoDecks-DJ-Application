@@ -1,20 +1,16 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "../JuceLibraryCode/JuceHeader.h"
-#include "CustomLookAndFeel.h"
-
-using namespace std;
-using namespace juce;
+#include "Callbacks.h"
 
 class DeckLoadCellComponent : public juce::Component,
-    public juce::Button::Listener
+                               public juce::Button::Listener
 {
 public:
-    DeckLoadCellComponent(std::function<void(int, int)> onLoadTrack,
-        std::function<void(int)> onRemoveTrack)
-        : loadTrackCallback(onLoadTrack),
-        removeTrackCallback(onRemoveTrack)
+    DeckLoadCellComponent(LoadTrackByRowFn onLoadTrack,
+                          RemoveTrackFn   onRemoveTrack)
+        : loadTrackCallback(std::move(onLoadTrack)),
+          removeTrackCallback(std::move(onRemoveTrack))
     {
         addAndMakeVisible(deck1Button);
         addAndMakeVisible(deck2Button);
@@ -27,43 +23,23 @@ public:
         deck1Button.addListener(this);
         deck2Button.addListener(this);
         removeButton.addListener(this);
-
-       
-        deck1Button.setLookAndFeel(&customLook);
-        deck2Button.setLookAndFeel(&customLook);
-        removeButton.setLookAndFeel(&customLook);
-
-
     }
 
-    ~DeckLoadCellComponent() override
-    {
-        
-        deck1Button.setLookAndFeel(nullptr);
-        deck2Button.setLookAndFeel(nullptr);
-        removeButton.setLookAndFeel(nullptr);
-    }
+    ~DeckLoadCellComponent() override = default;
 
-    void setRow(int newRow)
-    {
-        rowNumber = newRow;
-    }
+    void setRow(int newRow) { rowNumber = newRow; }
 
     void resized() override
     {
-        auto area = getLocalBounds().reduced(4);  
-        int buttonWidth = (area.getWidth() - 8) / 3; 
+        auto area        = getLocalBounds().reduced(4);
+        int  buttonWidth = (area.getWidth() - 8) / 3;
 
         deck1Button.setBounds(area.removeFromLeft(buttonWidth));
-        area.removeFromLeft(4); 
-
+        area.removeFromLeft(4);
         deck2Button.setBounds(area.removeFromLeft(buttonWidth));
-        area.removeFromLeft(4); 
-
+        area.removeFromLeft(4);
         removeButton.setBounds(area.removeFromLeft(buttonWidth));
     }
-
-
 
     void buttonClicked(juce::Button* button) override
     {
@@ -80,12 +56,13 @@ public:
 
 private:
     int rowNumber = -1;
+
     juce::TextButton deck1Button;
     juce::TextButton deck2Button;
     juce::TextButton removeButton;
 
-    std::function<void(int, int)> loadTrackCallback;
-    std::function<void(int)> removeTrackCallback;
+    LoadTrackByRowFn loadTrackCallback;
+    RemoveTrackFn    removeTrackCallback;
 
-    CustomLookAndFeel customLook;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DeckLoadCellComponent)
 };

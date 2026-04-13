@@ -25,6 +25,20 @@
             file="Source/MainComponent.cpp"/>
       <FILE id="SdySB9" name="CustomLookAndFeel.h" compile="0" resource="0"
             file="Source/CustomLookAndFeel.h"/>
+      <FILE id="Aa0001" name="DeckState.h" compile="0" resource="0"
+            file="Source/DeckState.h"/>
+      <FILE id="Aa0002" name="Callbacks.h" compile="0" resource="0"
+            file="Source/Callbacks.h"/>
+      <FILE id="Aa0003" name="VUMeter.h" compile="0" resource="0"
+            file="Source/VUMeter.h"/>
+      <FILE id="Aa0004" name="MixerPanel.h" compile="0" resource="0"
+            file="Source/MixerPanel.h"/>
+      <FILE id="Aa0005" name="MixerPanel.cpp" compile="1" resource="0"
+            file="Source/MixerPanel.cpp"/>
+      <FILE id="Aa0006" name="BPMAnalyser.h" compile="0" resource="0"
+            file="Source/BPMAnalyser.h"/>
+      <FILE id="Aa0007" name="BPMAnalyser.cpp" compile="1" resource="0"
+            file="Source/BPMAnalyser.cpp"/>
     </GROUP>
   </MAINGROUP>
   <MODULES>

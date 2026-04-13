@@ -1,65 +1,96 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "../JuceLibraryCode/JuceHeader.h"
 #include "DJAudioPlayer.h"
 #include "WaveformDisplay.h"
-#include "CustomLookAndFeel.h"
+#include "BPMAnalyser.h"
+#include "Callbacks.h"
 
-using namespace juce;
-
-class DeckGUI : public Component,
-    public Button::Listener,
-    public Slider::Listener,
-    public FileDragAndDropTarget,
-    public Timer
+class DeckGUI : public juce::Component,
+                public juce::Button::Listener,
+                public juce::Slider::Listener,
+                public juce::FileDragAndDropTarget,
+                public juce::Timer
 {
 public:
-    DeckGUI(DJAudioPlayer* player,
-        juce::AudioFormatManager& formatManagerToUse,
-        juce::AudioThumbnailCache& cacheToUse,
-        const juce::String& deckTitleText);
+    DeckGUI(DJAudioPlayer& player,
+            juce::AudioFormatManager& formatManagerToUse,
+            juce::AudioThumbnailCache& cacheToUse,
+            const juce::String& deckTitleText,
+            juce::Colour deckColour);
     ~DeckGUI() override;
 
-    void paint(Graphics&) override;
+    void paint(juce::Graphics&) override;
     void resized() override;
 
-    void buttonClicked(Button*) override;
-    void sliderValueChanged(Slider*) override;
+    void buttonClicked(juce::Button*) override;
+    void sliderValueChanged(juce::Slider*) override;
 
-    bool isInterestedInFileDrag(const StringArray& files) override;
-    void filesDropped(const StringArray& files, int x, int y) override;
+    bool isInterestedInFileDrag(const juce::StringArray& files) override;
+    void filesDropped(const juce::StringArray& files, int x, int y) override;
 
     void timerCallback() override;
 
-    void loadFile(const File& file);
+    void loadFile(const juce::File& file);
+    void triggerSync();   // M6: called by keyboard shortcut
 
-    std::function<void()> onSyncRequested; 
+    // M4: show "Artist - Title" in deck header
+    void setNowPlaying(const juce::String& info);
 
-    std::function<float()> getOtherDeckSpeed;
+    GetOtherDeckSpeedFn getOtherDeckSpeed;
+    std::function<double()> getOtherDeckBPM;  // M5: BPM-based sync
 
     float getSpeed() const;
 
 private:
+    static juce::String formatTime(double seconds);
+    void  recordTap();
+
+    juce::AudioFormatManager& formatManager_;
     juce::FileChooser fChooser{ "Select a file..." };
 
-    TextButton playButton{ "Play" };
-    TextButton stopButton{ "Stop" };
-    TextButton loadButton{ "Load" };
-    TextButton syncButton{ "SYNC" }; 
+    // Transport
+    juce::TextButton playButton{ "Play" };
+    juce::TextButton stopButton{ "Stop" };
+    juce::TextButton loadButton{ "Load" };
+    juce::TextButton syncButton{ "Sync" };
 
-    Slider volSlider;
-    Slider speedSlider;
-    Slider posSlider;
+    // Loop (M2)
+    juce::TextButton loopInButton   { "Loop In"  };
+    juce::TextButton loopOutButton  { "Loop Out" };
+    juce::TextButton clearLoopButton{ "Clr Loop" };
 
-    Label volLabel, speedLabel, posLabel;
-    Label deckTitle;
+    // Cue (M2)
+    juce::TextButton setCueButton{ "Set Cue" };
+    juce::TextButton goCueButton { "Go Cue"  };
+
+    // M6: filter toggles
+    juce::TextButton lpfButton { "LP" };
+    juce::TextButton hpfButton { "HP" };
+
+    // M5: TAP BPM
+    juce::TextButton tapButton { "TAP" };
+
+    // Sliders
+    juce::Slider volSlider;
+    juce::Slider speedSlider;
+    juce::Slider posSlider;
+
+    // Labels
+    juce::Label volLabel, speedLabel, posLabel;
+    juce::Label deckTitle;
+    juce::Label stateLabel;
+    juce::Label timeLabel;
+    juce::Label bpmLabel;    // M5
 
     WaveformDisplay waveformDisplay;
+    BPMAnalyser     bpmAnalyser_;   // M5
 
-    DJAudioPlayer* player;
+    DJAudioPlayer&   player;
+    juce::Colour     deckColour_;
 
-    CustomLookAndFeel customLook;
+    // TAP BPM state (M5)
+    std::vector<double> tapTimes_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DeckGUI)
 };
