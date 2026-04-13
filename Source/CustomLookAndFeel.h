@@ -15,7 +15,12 @@ public:
     }
 
     juce::Font getTextButtonFont(juce::TextButton&, int) override {
-        return juce::Font("Arial", 14.0f, juce::Font::plain);
+        return juce::Font(juce::FontOptions(14.0f));
+    }
+
+    juce::Typeface::Ptr getTypefaceForFont(const juce::Font& font) override
+    {
+        return juce::LookAndFeel_V4::getTypefaceForFont(font);
     }
 
     void drawButtonBackground(juce::Graphics& g, juce::Button& button,
