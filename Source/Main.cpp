@@ -1,5 +1,5 @@
 #include <JuceHeader.h>
-#include "MainComponent.h"
+#include "gui/MainComponent.h"
 
 //==============================================================================
 class OtoDecksApplication : public juce::JUCEApplication

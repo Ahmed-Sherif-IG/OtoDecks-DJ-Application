@@ -4,41 +4,49 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="k0f0r7" name="OtoDeck">
     <GROUP id="{E9330025-9071-1278-8A30-07886D7AEC8B}" name="Source">
-      <FILE id="uJIB7H" name="DeckLoadCellComponent.h" compile="0" resource="0"
-            file="Source/DeckLoadCellComponent.h"/>
-      <FILE id="swyOdn" name="PlaylistComponent.cpp" compile="1" resource="0"
-            file="Source/PlaylistComponent.cpp"/>
-      <FILE id="j4pVjx" name="PlaylistComponent.h" compile="0" resource="0"
-            file="Source/PlaylistComponent.h"/>
-      <FILE id="bt9mkj" name="WaveformDisplay.h" compile="0" resource="0"
-            file="Source/WaveformDisplay.h"/>
-      <FILE id="pZ9tWV" name="WaveformDisplay.cpp" compile="1" resource="0"
-            file="Source/WaveformDisplay.cpp"/>
-      <FILE id="zvDhTF" name="DJAudioPlayer.h" compile="0" resource="0" file="Source/DJAudioPlayer.h"/>
-      <FILE id="EkzCH3" name="DJAudioPlayer.cpp" compile="1" resource="0"
-            file="Source/DJAudioPlayer.cpp"/>
-      <FILE id="EZ3rOR" name="DeckGUI.h" compile="0" resource="0" file="Source/DeckGUI.h"/>
-      <FILE id="yXYUXU" name="DeckGUI.cpp" compile="1" resource="0" file="Source/DeckGUI.cpp"/>
+      <GROUP id="{A0000001-9071-1278-8A30-07886D7AEC8B}" name="audio">
+        <FILE id="zvDhTF" name="DJAudioPlayer.h" compile="0" resource="0" file="Source/audio/DJAudioPlayer.h"/>
+        <FILE id="EkzCH3" name="DJAudioPlayer.cpp" compile="1" resource="0"
+              file="Source/audio/DJAudioPlayer.cpp"/>
+        <FILE id="Aa0006" name="BPMAnalyser.h" compile="0" resource="0"
+              file="Source/audio/BPMAnalyser.h"/>
+        <FILE id="Aa0007" name="BPMAnalyser.cpp" compile="1" resource="0"
+              file="Source/audio/BPMAnalyser.cpp"/>
+      </GROUP>
+      <GROUP id="{A0000002-9071-1278-8A30-07886D7AEC8B}" name="gui">
+        <FILE id="uJIB7H" name="DeckLoadCellComponent.h" compile="0" resource="0"
+              file="Source/gui/DeckLoadCellComponent.h"/>
+        <FILE id="bt9mkj" name="WaveformDisplay.h" compile="0" resource="0"
+              file="Source/gui/WaveformDisplay.h"/>
+        <FILE id="pZ9tWV" name="WaveformDisplay.cpp" compile="1" resource="0"
+              file="Source/gui/WaveformDisplay.cpp"/>
+        <FILE id="EZ3rOR" name="DeckGUI.h" compile="0" resource="0" file="Source/gui/DeckGUI.h"/>
+        <FILE id="yXYUXU" name="DeckGUI.cpp" compile="1" resource="0" file="Source/gui/DeckGUI.cpp"/>
+        <FILE id="UvIpF9" name="MainComponent.h" compile="0" resource="0" file="Source/gui/MainComponent.h"/>
+        <FILE id="XIFSTf" name="MainComponent.cpp" compile="1" resource="0"
+              file="Source/gui/MainComponent.cpp"/>
+        <FILE id="Aa0003" name="VUMeter.h" compile="0" resource="0"
+              file="Source/gui/VUMeter.h"/>
+        <FILE id="Aa0004" name="MixerPanel.h" compile="0" resource="0"
+              file="Source/gui/MixerPanel.h"/>
+        <FILE id="Aa0005" name="MixerPanel.cpp" compile="1" resource="0"
+              file="Source/gui/MixerPanel.cpp"/>
+      </GROUP>
+      <GROUP id="{A0000003-9071-1278-8A30-07886D7AEC8B}" name="library">
+        <FILE id="swyOdn" name="PlaylistComponent.cpp" compile="1" resource="0"
+              file="Source/library/PlaylistComponent.cpp"/>
+        <FILE id="j4pVjx" name="PlaylistComponent.h" compile="0" resource="0"
+              file="Source/library/PlaylistComponent.h"/>
+      </GROUP>
+      <GROUP id="{A0000004-9071-1278-8A30-07886D7AEC8B}" name="shared">
+        <FILE id="SdySB9" name="CustomLookAndFeel.h" compile="0" resource="0"
+              file="Source/shared/CustomLookAndFeel.h"/>
+        <FILE id="Aa0001" name="DeckState.h" compile="0" resource="0"
+              file="Source/shared/DeckState.h"/>
+        <FILE id="Aa0002" name="Callbacks.h" compile="0" resource="0"
+              file="Source/shared/Callbacks.h"/>
+      </GROUP>
       <FILE id="uYCrj7" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
-      <FILE id="UvIpF9" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
-      <FILE id="XIFSTf" name="MainComponent.cpp" compile="1" resource="0"
-            file="Source/MainComponent.cpp"/>
-      <FILE id="SdySB9" name="CustomLookAndFeel.h" compile="0" resource="0"
-            file="Source/CustomLookAndFeel.h"/>
-      <FILE id="Aa0001" name="DeckState.h" compile="0" resource="0"
-            file="Source/DeckState.h"/>
-      <FILE id="Aa0002" name="Callbacks.h" compile="0" resource="0"
-            file="Source/Callbacks.h"/>
-      <FILE id="Aa0003" name="VUMeter.h" compile="0" resource="0"
-            file="Source/VUMeter.h"/>
-      <FILE id="Aa0004" name="MixerPanel.h" compile="0" resource="0"
-            file="Source/MixerPanel.h"/>
-      <FILE id="Aa0005" name="MixerPanel.cpp" compile="1" resource="0"
-            file="Source/MixerPanel.cpp"/>
-      <FILE id="Aa0006" name="BPMAnalyser.h" compile="0" resource="0"
-            file="Source/BPMAnalyser.h"/>
-      <FILE id="Aa0007" name="BPMAnalyser.cpp" compile="1" resource="0"
-            file="Source/BPMAnalyser.cpp"/>
     </GROUP>
   </MAINGROUP>
   <MODULES>

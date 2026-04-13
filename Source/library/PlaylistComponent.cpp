@@ -1,5 +1,5 @@
 #include "PlaylistComponent.h"
-#include "DeckLoadCellComponent.h"
+#include "../gui/DeckLoadCellComponent.h"
 
 namespace
 {

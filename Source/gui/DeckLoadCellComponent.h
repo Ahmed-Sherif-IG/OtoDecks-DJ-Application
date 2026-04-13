@@ -1,7 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "Callbacks.h"
+#include "../shared/Callbacks.h"
 
 class DeckLoadCellComponent : public juce::Component,
                                public juce::Button::Listener

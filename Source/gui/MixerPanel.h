@@ -1,7 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "DJAudioPlayer.h"
+#include "../audio/DJAudioPlayer.h"
 #include "VUMeter.h"
 
 class MixerPanel : public juce::Component,

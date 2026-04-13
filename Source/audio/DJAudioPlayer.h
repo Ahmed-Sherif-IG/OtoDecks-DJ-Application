@@ -1,7 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "DeckState.h"
+#include "../shared/DeckState.h"
 
 class DJAudioPlayer : public juce::AudioSource
 {

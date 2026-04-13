@@ -1,11 +1,11 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "DJAudioPlayer.h"
+#include "../audio/DJAudioPlayer.h"
 #include "DeckGUI.h"
 #include "MixerPanel.h"
-#include "PlaylistComponent.h"
-#include "CustomLookAndFeel.h"
+#include "../library/PlaylistComponent.h"
+#include "../shared/CustomLookAndFeel.h"
 
 class MainComponent : public juce::AudioAppComponent,
                       public juce::KeyListener

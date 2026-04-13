@@ -1,10 +1,10 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "DJAudioPlayer.h"
+#include "../audio/DJAudioPlayer.h"
 #include "WaveformDisplay.h"
-#include "BPMAnalyser.h"
-#include "Callbacks.h"
+#include "../audio/BPMAnalyser.h"
+#include "../shared/Callbacks.h"
 
 class DeckGUI : public juce::Component,
                 public juce::Button::Listener,
