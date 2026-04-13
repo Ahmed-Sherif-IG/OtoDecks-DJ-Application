@@ -1,4 +1,5 @@
 #include "WaveformDisplay.h"
+#include "../shared/CustomLookAndFeel.h"
 
 WaveformDisplay::WaveformDisplay(juce::AudioFormatManager& formatManagerToUse,
                                  juce::AudioThumbnailCache& cacheToUse)
@@ -15,75 +16,92 @@ WaveformDisplay::~WaveformDisplay()
 //==============================================================================
 void WaveformDisplay::paint(juce::Graphics& g)
 {
-    auto bounds = getLocalBounds();
-    int  w      = bounds.getWidth();
-    int  h      = bounds.getHeight();
+    auto bounds = getLocalBounds().toFloat();
+    const float w = bounds.getWidth();
+    const float h = bounds.getHeight();
 
-    g.fillAll(juce::Colour::fromRGB(10, 10, 10));
-    g.setColour(juce::Colour::fromRGB(60, 60, 60));
-    g.drawRect(bounds, 1);
+    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.05f),
+                                    bounds.getTopLeft(),
+                                    juce::Colour(0xFF0E1219),
+                                    bounds.getBottomLeft(),
+                                    false);
+    g.setGradientFill(background);
+    g.fillRoundedRectangle(bounds, 12.0f);
+
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
+
+    auto inner = bounds.reduced(10.0f, 12.0f);
 
     if (!fileLoaded)
     {
-        g.setFont(juce::Font(juce::FontOptions(16.0f)));
-        g.setColour(juce::Colours::dimgrey);
-        g.drawText("Drop or Load a file", bounds, juce::Justification::centred, true);
+        g.setFont(juce::Font(juce::FontOptions(16.0f).withStyle("Bold")));
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
+        g.drawText("Drop or Load a Track", inner.toNearestInt(), juce::Justification::centred, true);
         return;
     }
 
-    // Loop region shading
-    if (loopActive_)
+    for (int i = 1; i < 4; ++i)
     {
-        auto loopRect = juce::Rectangle<float>(
-            static_cast<float>(loopStartRel_ * w), 0.0f,
-            static_cast<float>((loopEndRel_ - loopStartRel_) * w), static_cast<float>(h));
-        g.setColour(waveformColour.withAlpha(0.15f));
-        g.fillRect(loopRect);
+        const float y = inner.getY() + inner.getHeight() * (static_cast<float>(i) / 4.0f);
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.28f));
+        g.drawHorizontalLine(static_cast<int>(y), inner.getX(), inner.getRight());
     }
 
-    // Waveform
-    g.setColour(waveformColour);
-    audioThumb.drawChannel(g, bounds, 0.0, audioThumb.getTotalLength(), 0, 1.0f);
+    if (loopActive_ && loopEndRel_ > loopStartRel_)
+    {
+        auto loopRect = juce::Rectangle<float>(
+            inner.getX() + static_cast<float>(loopStartRel_ * inner.getWidth()), inner.getY(),
+            static_cast<float>((loopEndRel_ - loopStartRel_) * inner.getWidth()), inner.getHeight());
+        g.setColour(waveformColour.withAlpha(0.15f));
+        g.fillRoundedRectangle(loopRect, 8.0f);
+    }
 
-    // Beat grid overlay (M5)
+    g.setColour(waveformColour.withAlpha(0.95f));
+    audioThumb.drawChannel(g, inner.toNearestInt(), 0.0, audioThumb.getTotalLength(), 0, 0.95f);
+
     if (!beatPositions_.empty())
     {
-        g.setColour(juce::Colours::white.withAlpha(0.18f));
+        g.setColour(juce::Colours::white.withAlpha(0.12f));
         for (double beat : beatPositions_)
         {
-            float bx = static_cast<float>(beat * w);
-            g.drawVerticalLine(static_cast<int>(bx), 0.0f, static_cast<float>(h));
+            const float bx = inner.getX() + static_cast<float>(beat * inner.getWidth());
+            g.drawVerticalLine(static_cast<int>(bx), inner.getY(), inner.getBottom());
         }
     }
 
-    // Cue marker
     if (cueMarker_ > 0.0)
     {
-        float cx = static_cast<float>(cueMarker_ * w);
-        g.setColour(juce::Colours::yellow);
-        g.drawVerticalLine(static_cast<int>(cx), 0.0f, static_cast<float>(h));
-        // small triangle indicator at top
+        const float cx = inner.getX() + static_cast<float>(cueMarker_ * inner.getWidth());
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue));
+        g.drawVerticalLine(static_cast<int>(cx), inner.getY(), inner.getBottom());
         juce::Path tri;
-        tri.addTriangle(cx - 4.0f, 0.0f, cx + 4.0f, 0.0f, cx, 8.0f);
+        tri.addTriangle(cx - 5.0f, inner.getY() + 1.0f,
+                        cx + 5.0f, inner.getY() + 1.0f,
+                        cx, inner.getY() + 10.0f);
         g.fillPath(tri);
     }
 
-    // Loop in/out markers
     if (loopStartRel_ > 0.0 || loopEndRel_ > 0.0)
     {
-        auto markerColour = loopActive_ ? waveformColour.brighter(0.5f)
-                                        : juce::Colours::grey;
-        g.setColour(markerColour);
-        float sx = static_cast<float>(loopStartRel_ * w);
-        float ex = static_cast<float>(loopEndRel_ * w);
-        g.drawVerticalLine(static_cast<int>(sx), 0.0f, static_cast<float>(h));
-        g.drawVerticalLine(static_cast<int>(ex), 0.0f, static_cast<float>(h));
+        const auto markerColour = loopActive_ ? waveformColour.brighter(0.35f)
+                                              : CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue);
+        g.setColour(markerColour.withAlpha(0.95f));
+        const float sx = inner.getX() + static_cast<float>(loopStartRel_ * inner.getWidth());
+        const float ex = inner.getX() + static_cast<float>(loopEndRel_ * inner.getWidth());
+        g.drawVerticalLine(static_cast<int>(sx), inner.getY(), inner.getBottom());
+        g.drawVerticalLine(static_cast<int>(ex), inner.getY(), inner.getBottom());
     }
 
-    // Playhead
-    float px = static_cast<float>(position * w);
-    g.setColour(juce::Colours::white);
-    g.drawLine(px, 0.0f, px, static_cast<float>(h), 2.0f);
+    const float px = inner.getX() + static_cast<float>(position * inner.getWidth());
+    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.drawLine(px, inner.getY(), px, inner.getBottom(), 2.4f);
+    g.fillEllipse(px - 5.0f, inner.getCentreY() - 5.0f, 10.0f, 10.0f);
+
+    juce::ColourGradient gloss(juce::Colours::white.withAlpha(0.07f), bounds.getTopLeft(),
+                               juce::Colours::transparentBlack, bounds.getCentre(), false);
+    g.setGradientFill(gloss);
+    g.fillRoundedRectangle(bounds.reduced(1.0f), 12.0f);
 }
 
 void WaveformDisplay::resized() {}
@@ -146,7 +164,7 @@ void WaveformDisplay::setBeatPositions(const std::vector<double>& beats)
 void WaveformDisplay::seekToX(int x)
 {
     if (!fileLoaded || !onSeek) return;
-    double pos = juce::jlimit(0.0, 1.0, static_cast<double>(x) / getWidth());
+    const double pos = juce::jlimit(0.0, 1.0, static_cast<double>(x) / getWidth());
     onSeek(pos);
 }
 

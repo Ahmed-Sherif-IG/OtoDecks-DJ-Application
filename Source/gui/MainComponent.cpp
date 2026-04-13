@@ -1,4 +1,5 @@
 #include "MainComponent.h"
+#include "../shared/CustomLookAndFeel.h"
 
 MainComponent::MainComponent()
 {
@@ -18,9 +19,9 @@ MainComponent::MainComponent()
     formatManager.registerBasicFormats();
 
     deckGUI1 = std::make_unique<DeckGUI>(player1, formatManager, thumbnailCache,
-                                          "Deck 1", juce::Colour(0x3A7BD5FF));
+                                          "Deck A", CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue));
     deckGUI2 = std::make_unique<DeckGUI>(player2, formatManager, thumbnailCache,
-                                          "Deck 2", juce::Colour(0xF5A623FF));
+                                          "Deck B", CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue));
 
     deckGUI1->getOtherDeckSpeed = [this]() { return deckGUI2->getSpeed(); };
     deckGUI2->getOtherDeckSpeed = [this]() { return deckGUI1->getSpeed(); };
@@ -50,7 +51,7 @@ MainComponent::MainComponent()
     addKeyListener(this);
     setWantsKeyboardFocus(true);
 
-    setSize(1100, 720);
+    setSize(1180, 780);
 }
 
 MainComponent::~MainComponent()
@@ -92,69 +93,69 @@ void MainComponent::releaseResources()
 //==============================================================================
 void MainComponent::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour::fromRGB(14, 14, 14));
+    auto bounds = getLocalBounds().toFloat();
+    juce::ColourGradient background(juce::Colour(0xFF0C1017), bounds.getTopLeft(),
+                                    juce::Colour(0xFF121826), bounds.getBottomLeft(), false);
+    g.setGradientFill(background);
+    g.fillAll();
+
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.08f));
+    g.fillEllipse(-120.0f, -80.0f, 360.0f, 220.0f);
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.08f));
+    g.fillEllipse(static_cast<float>(getWidth() - 220), static_cast<float>(getHeight() - 220), 320.0f, 220.0f);
 }
 
 void MainComponent::resized()
 {
-    // Fully proportional — works from 900×600 to 1920×1080
-    auto area = getLocalBounds().reduced(
-        juce::jmax(4, getWidth() / 120),
-        juce::jmax(4, getHeight() / 80));
-
-    int deckAreaH = static_cast<int>(area.getHeight() * 0.65f);
+    auto area = getLocalBounds().reduced(14, 12);
+    const int sectionGap = 10;
+    const int deckAreaH = static_cast<int>(area.getHeight() * 0.64f);
     auto deckArea = area.removeFromTop(deckAreaH);
 
-    int mixerW = juce::jmax(150, deckArea.getWidth() / 6);
-    int deckW  = (deckArea.getWidth() - mixerW) / 2;
+    const int mixerW = juce::jlimit(200, 280, deckArea.getWidth() / 5);
+    const int deckW  = (deckArea.getWidth() - mixerW - sectionGap * 2) / 2;
 
-    if (deckGUI1)   deckGUI1->setBounds(deckArea.removeFromLeft(deckW).reduced(4));
-    if (mixerPanel) mixerPanel->setBounds(deckArea.removeFromLeft(mixerW).reduced(4));
-    if (deckGUI2)   deckGUI2->setBounds(deckArea.reduced(4));
+    if (deckGUI1)   deckGUI1->setBounds(deckArea.removeFromLeft(deckW));
+    deckArea.removeFromLeft(sectionGap);
+    if (mixerPanel) mixerPanel->setBounds(deckArea.removeFromLeft(mixerW));
+    deckArea.removeFromLeft(sectionGap);
+    if (deckGUI2)   deckGUI2->setBounds(deckArea);
 
-    playlistComponent.setBounds(area.reduced(4));
+    area.removeFromTop(12);
+    playlistComponent.setBounds(area);
 }
 
 //==============================================================================
-// M6: full keyboard shortcut table
 bool MainComponent::keyPressed(const juce::KeyPress& key, juce::Component*)
 {
     using KP = juce::KeyPress;
 
-    // Play/Stop deck 1
     if (key == KP('1'))
     {
         auto s = player1.getState();
         if (s.isPlaying) player1.stop(); else player1.start();
         return true;
     }
-    // Play/Stop deck 2
     if (key == KP('2'))
     {
         auto s = player2.getState();
         if (s.isPlaying) player2.stop(); else player2.start();
         return true;
     }
-    // Space = toggle deck 1
     if (key == KP(KP::spaceKey))
     {
         auto s = player1.getState();
         if (s.isPlaying) player1.stop(); else player1.start();
         return true;
     }
-    // Q = Set Cue Deck 1
     if (key == KP('q') || key == KP('Q'))
     { player1.setCuePoint(); return true; }
-    // W = Go Cue Deck 1
     if (key == KP('w') || key == KP('W'))
     { player1.jumpToCue(); return true; }
-    // O = Set Cue Deck 2
     if (key == KP('o') || key == KP('O'))
     { player2.setCuePoint(); return true; }
-    // P = Go Cue Deck 2
     if (key == KP('p') || key == KP('P'))
     { player2.jumpToCue(); return true; }
-    // S = Sync deck 2 to deck 1
     if (key == KP('s') || key == KP('S'))
     {
         if (deckGUI2) deckGUI2->triggerSync();

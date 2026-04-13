@@ -1,5 +1,6 @@
 #include "PlaylistComponent.h"
 #include "../gui/DeckLoadCellComponent.h"
+#include "../shared/CustomLookAndFeel.h"
 
 namespace
 {
@@ -9,31 +10,41 @@ namespace
 //==============================================================================
 PlaylistComponent::PlaylistComponent()
 {
-    // Table columns
     auto& header = tableComponent.getHeader();
-    header.addColumn("Title",    ColTitle,    220, 80, -1, juce::TableHeaderComponent::defaultFlags);
-    header.addColumn("Artist",   ColArtist,   140, 60, -1, juce::TableHeaderComponent::defaultFlags);
-    header.addColumn("Duration", ColDuration,  70, 50, -1, juce::TableHeaderComponent::defaultFlags);
-    header.addColumn("BPM",      ColBPM,       55, 40, -1, juce::TableHeaderComponent::defaultFlags);
-    header.addColumn("Load",     ColLoad,     180, 120,-1, juce::TableHeaderComponent::notSortable);
+    header.addColumn("Title",    ColTitle,    260, 100, -1, juce::TableHeaderComponent::defaultFlags);
+    header.addColumn("Artist",   ColArtist,   170, 80, -1, juce::TableHeaderComponent::defaultFlags);
+    header.addColumn("Duration", ColDuration,  84, 60, -1, juce::TableHeaderComponent::defaultFlags);
+    header.addColumn("BPM",      ColBPM,       68, 50, -1, juce::TableHeaderComponent::defaultFlags);
+    header.addColumn("Actions",  ColLoad,     220, 160, -1, juce::TableHeaderComponent::notSortable);
     header.setSortColumnId(ColTitle, true);
 
-    header.setColour(juce::TableHeaderComponent::backgroundColourId, juce::Colours::black);
-    header.setColour(juce::TableHeaderComponent::textColourId,       juce::Colours::lightgrey);
+    header.setColour(juce::TableHeaderComponent::backgroundColourId, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
+    header.setColour(juce::TableHeaderComponent::textColourId,       CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
 
     tableComponent.setModel(this);
+    tableComponent.setColour(juce::ListBox::backgroundColourId, CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue));
+    tableComponent.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible(tableComponent);
 
     addTracksButton.addListener(this);
-    addTracksButton.setButtonText("+  Add Tracks");
+    addTracksButton.setButtonText("+ Add Tracks");
+    addTracksButton.setColour(juce::TextButton::buttonColourId,
+                              CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue));
     addAndMakeVisible(addTracksButton);
+
+    trackCountLabel.setFont(juce::Font(juce::FontOptions(12.0f).withStyle("Bold")));
+    trackCountLabel.setColour(juce::Label::textColourId,
+                              CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
+    trackCountLabel.setJustificationType(juce::Justification::centredRight);
     addAndMakeVisible(trackCountLabel);
 
-    searchBox.setTextToShowWhenEmpty("Search tracks...", juce::Colours::grey);
+    searchBox.setTextToShowWhenEmpty("Search tracks, artists, BPM...", CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
     searchBox.addListener(this);
-    searchBox.setColour(juce::TextEditor::backgroundColourId, juce::Colour::fromRGB(35,35,35));
-    searchBox.setColour(juce::TextEditor::textColourId,       juce::Colours::white);
-    searchBox.setColour(juce::TextEditor::outlineColourId,    juce::Colours::darkgrey);
+    searchBox.setColour(juce::TextEditor::backgroundColourId, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
+    searchBox.setColour(juce::TextEditor::textColourId,       CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
+    searchBox.setColour(juce::TextEditor::outlineColourId,    CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue));
+    searchBox.setColour(juce::TextEditor::focusedOutlineColourId, CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue));
+    searchBox.setFont(juce::Font(juce::FontOptions(13.0f)));
     addAndMakeVisible(searchBox);
 
     loadLibrary();
@@ -47,22 +58,31 @@ PlaylistComponent::~PlaylistComponent()
 //==============================================================================
 void PlaylistComponent::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colours::black);
-    g.setColour(juce::Colours::grey);
-    g.drawRect(getLocalBounds(), 1);
+    auto bounds = getLocalBounds().toFloat().reduced(1.0f);
+    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.03f),
+                                    bounds.getTopLeft(),
+                                    CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue),
+                                    bounds.getBottomLeft(),
+                                    false);
+    g.setGradientFill(background);
+    g.fillRoundedRectangle(bounds, 18.0f);
+
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
+    g.drawRoundedRectangle(bounds, 18.0f, 1.2f);
 }
 
 void PlaylistComponent::resized()
 {
-    auto area   = getLocalBounds().reduced(8);
-    auto topRow = area.removeFromTop(36);
+    auto area   = getLocalBounds().reduced(12);
+    auto topRow = area.removeFromTop(40);
 
-    addTracksButton.setBounds(topRow.removeFromLeft(130));
-    topRow.removeFromLeft(8);
-    searchBox.setBounds(topRow.removeFromLeft(220));
-    topRow.removeFromLeft(8);
-    trackCountLabel.setBounds(topRow.removeFromLeft(100));
+    addTracksButton.setBounds(topRow.removeFromLeft(148));
+    topRow.removeFromLeft(10);
+    searchBox.setBounds(topRow.removeFromLeft(320));
+    topRow.removeFromLeft(10);
+    trackCountLabel.setBounds(topRow);
 
+    area.removeFromTop(8);
     tableComponent.setBounds(area);
 }
 
@@ -81,7 +101,8 @@ std::vector<int> PlaylistComponent::getFilteredIndices() const
     {
         if (query.isEmpty()
             || tracks[i].title.toLowerCase().contains(query)
-            || tracks[i].artist.toLowerCase().contains(query))
+            || tracks[i].artist.toLowerCase().contains(query)
+            || juce::String(tracks[i].bpm, 1).contains(query))
         {
             indices.push_back(i);
         }
@@ -90,24 +111,29 @@ std::vector<int> PlaylistComponent::getFilteredIndices() const
 }
 
 void PlaylistComponent::paintRowBackground(juce::Graphics& g,
-                                            int /*rowNumber*/,
-                                            int /*width*/, int /*height*/,
-                                            bool rowIsSelected)
+                                           int rowNumber,
+                                           int /*width*/, int /*height*/,
+                                           bool rowIsSelected)
 {
-    g.fillAll(rowIsSelected ? juce::Colour(50, 80, 120) : juce::Colour(28, 28, 28));
+    const auto evenColour = CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).brighter(0.02f);
+    const auto oddColour  = CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).darker(0.08f);
+    const auto selected   = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.22f);
+
+    g.fillAll(rowIsSelected ? selected : ((rowNumber % 2 == 0) ? evenColour : oddColour));
 }
 
 void PlaylistComponent::paintCell(juce::Graphics& g,
-                                   int rowNumber,
-                                   int columnId,
-                                   int width, int height,
-                                   bool /*rowIsSelected*/)
+                                  int rowNumber,
+                                  int columnId,
+                                  int width, int height,
+                                  bool /*rowIsSelected*/)
 {
     auto filtered = getFilteredIndices();
     if (rowNumber >= static_cast<int>(filtered.size())) return;
 
     const Track& t = tracks[static_cast<size_t>(filtered[rowNumber])];
     juce::String text;
+    juce::Justification just = juce::Justification::centredLeft;
 
     switch (columnId)
     {
@@ -118,31 +144,36 @@ void PlaylistComponent::paintCell(juce::Graphics& g,
             text = t.artist.isEmpty() ? "--" : sanitiseDisplayText(t.artist);
             break;
         case ColDuration:
+            just = juce::Justification::centred;
             if (t.durationSeconds > 0.0)
             {
-                int m = static_cast<int>(t.durationSeconds) / 60;
-                int s = static_cast<int>(t.durationSeconds) % 60;
+                const int m = static_cast<int>(t.durationSeconds) / 60;
+                const int s = static_cast<int>(t.durationSeconds) % 60;
                 text = juce::String(m) + ":" + juce::String(s).paddedLeft('0', 2);
             }
             else
+            {
                 text = "--";
+            }
             break;
         case ColBPM:
+            just = juce::Justification::centred;
             text = (t.bpm > 0.0) ? juce::String(t.bpm, 1) : "--";
             break;
         default:
             return;
     }
 
-    g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(juce::FontOptions(13.0f)));
-    g.drawText(text, 6, 0, width - 10, height, juce::Justification::centredLeft, true);
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
+    g.setFont(juce::Font(juce::FontOptions(columnId == ColTitle ? 13.5f : 12.5f)
+                         .withStyle(columnId == ColTitle ? "Bold" : "Regular")));
+    g.drawText(text, juce::Rectangle<int>(6, 0, width - 12, height), just, true);
 }
 
 juce::Component* PlaylistComponent::refreshComponentForCell(int rowNumber,
-                                                              int columnId,
-                                                              bool /*isRowSelected*/,
-                                                              juce::Component* existing)
+                                                            int columnId,
+                                                            bool /*isRowSelected*/,
+                                                            juce::Component* existing)
 {
     if (columnId != ColLoad) return nullptr;
 
@@ -157,16 +188,14 @@ juce::Component* PlaylistComponent::refreshComponentForCell(int rowNumber,
             {
                 auto fi = getFilteredIndices();
                 if (row < 0 || row >= static_cast<int>(fi.size())) return;
-                int idx = fi[row];
+                const int idx = fi[row];
                 if (idx < 0 || idx >= static_cast<int>(tracks.size())) return;
                 const Track& t = tracks[static_cast<size_t>(idx)];
                 if (loadTrackToDeck)
                     loadTrackToDeck(t.file, deck);
                 if (onNowPlaying)
                 {
-                    juce::String display = t.artist.isEmpty()
-                                         ? t.title
-                                         : t.artist + " - " + t.title;
+                    const juce::String display = t.artist.isEmpty() ? t.title : t.artist + " - " + t.title;
                     onNowPlaying(deck, display);
                 }
             },
@@ -174,7 +203,7 @@ juce::Component* PlaylistComponent::refreshComponentForCell(int rowNumber,
             {
                 auto fi = getFilteredIndices();
                 if (row < 0 || row >= static_cast<int>(fi.size())) return;
-                int idx = fi[row];
+                const int idx = fi[row];
                 tracks.erase(tracks.begin() + idx);
                 saveLibrary();
                 updateTrackCountLabel();
@@ -244,7 +273,6 @@ void PlaylistComponent::buttonClicked(juce::Button* button)
             {
                 if (!file.existsAsFile()) continue;
 
-                // Skip duplicates
                 bool exists = false;
                 for (auto& t : tracks)
                     if (t.file == file) { exists = true; break; }
@@ -281,15 +309,12 @@ void PlaylistComponent::readMetadata(Track& track)
     juce::AudioFormatManager afm;
     afm.registerBasicFormats();
 
-    std::unique_ptr<juce::AudioFormatReader> reader(
-        afm.createReaderFor(track.file));
+    std::unique_ptr<juce::AudioFormatReader> reader(afm.createReaderFor(track.file));
 
     if (reader != nullptr)
     {
-        track.durationSeconds = static_cast<double>(reader->lengthInSamples)
-                                / reader->sampleRate;
+        track.durationSeconds = static_cast<double>(reader->lengthInSamples) / reader->sampleRate;
 
-        // Read metadata if available
         const auto& meta = reader->metadataValues;
         if (meta.size() > 0)
         {
@@ -510,5 +535,5 @@ PlaylistComponent::SortKey PlaylistComponent::buildSortKey(const Track& track, i
 void PlaylistComponent::updateTrackCountLabel()
 {
     trackCountLabel.setText("Tracks: " + juce::String(static_cast<int>(tracks.size())),
-                             juce::dontSendNotification);
+                            juce::dontSendNotification);
 }

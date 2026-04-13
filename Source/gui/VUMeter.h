@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include <functional>
+#include "../shared/CustomLookAndFeel.h"
 
 class VUMeter : public juce::Component,
                 private juce::Timer
@@ -18,44 +19,45 @@ public:
     void paint(juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().toFloat();
-        float level = juce::jlimit(0.0f, 1.0f, getLevel ? getLevel() : 0.0f);
+        auto frame = bounds.reduced(1.0f);
+        const float level = juce::jlimit(0.0f, 1.0f, getLevel ? getLevel() : 0.0f);
 
-        // Background
-        g.setColour(juce::Colour::fromRGB(15, 15, 15));
-        g.fillRect(bounds);
-        g.setColour(juce::Colours::darkgrey);
-        g.drawRect(bounds, 1.0f);
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
+        g.fillRoundedRectangle(frame, 8.0f);
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue));
+        g.drawRoundedRectangle(frame, 8.0f, 1.0f);
 
-        // Level bar — green → yellow → red
-        float fillH = bounds.getHeight() * level;
-        auto  fill  = bounds.removeFromBottom(fillH);
+        auto inner = frame.reduced(4.0f);
+        for (int i = 1; i < 8; ++i)
+        {
+            const float y = inner.getY() + inner.getHeight() * (static_cast<float>(i) / 8.0f);
+            g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.45f));
+            g.drawHorizontalLine(static_cast<int>(y), inner.getX(), inner.getRight());
+        }
 
-        juce::Colour barColour = level > 0.85f ? juce::Colours::red
-                               : level > 0.6f  ? juce::Colours::gold
-                                               : juce::Colours::limegreen;
-        g.setColour(barColour.withAlpha(0.85f));
-        g.fillRect(fill.reduced(2.0f, 0.0f));
+        juce::ColourGradient meterGradient(CustomLookAndFeel::colour(CustomLookAndFeel::accentGreenValue), inner.getBottomLeft(),
+                                           CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue), inner.withY(inner.getHeight() * 0.35f).getTopLeft(), false);
+        meterGradient.addColour(0.9, CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue));
 
-        // Peak line
-        float peakY = bounds.getY() + (1.0f - peakLevel_) * bounds.getHeight();
-        g.setColour(juce::Colours::white.withAlpha(0.7f));
-        g.drawHorizontalLine(static_cast<int>(peakY),
-                              bounds.getX() + 2.0f,
-                              bounds.getRight() - 2.0f);
+        const float fillHeight = inner.getHeight() * level;
+        auto fill = inner.removeFromBottom(fillHeight);
+        g.setGradientFill(meterGradient);
+        g.fillRoundedRectangle(fill, 5.0f);
+
+        const float peakY = inner.getY() + (1.0f - peakLevel_) * inner.getHeight();
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue).withAlpha(0.9f));
+        g.drawHorizontalLine(static_cast<int>(peakY), inner.getX(), inner.getRight());
     }
-
-    void resized() override {}
 
 private:
     void timerCallback() override
     {
-        float current = getLevel ? getLevel() : 0.0f;
+        const float current = getLevel ? getLevel() : 0.0f;
 
-        // Peak hold with decay
         if (current >= peakLevel_)
         {
             peakLevel_      = current;
-            peakHoldFrames_ = 30;
+            peakHoldFrames_ = 24;
         }
         else if (peakHoldFrames_ > 0)
         {
@@ -63,7 +65,7 @@ private:
         }
         else
         {
-            peakLevel_ = juce::jmax(0.0f, peakLevel_ - 0.02f);
+            peakLevel_ = juce::jmax(0.0f, peakLevel_ - 0.018f);
         }
 
         repaint();
