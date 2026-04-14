@@ -30,7 +30,7 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
       deckColour_(colour)
 {
     deckTitle.setText(deckTitleText, juce::dontSendNotification);
-    deckTitle.setFont(juce::Font(juce::FontOptions(18.0f).withStyle("Bold")));
+    deckTitle.setFont(juce::Font(juce::FontOptions(22.0f).withStyle("Bold")));
     deckTitle.setColour(juce::Label::textColourId, CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
     deckTitle.setJustificationType(juce::Justification::centredLeft);
     addAndMakeVisible(deckTitle);
@@ -42,15 +42,15 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
     addAndMakeVisible(stateLabel);
 
     timeLabel.setText("0:00 / 0:00", juce::dontSendNotification);
-    timeLabel.setFont(juce::Font(juce::FontOptions(11.0f)));
+    timeLabel.setFont(juce::Font(juce::FontOptions(14.0f).withStyle("Bold")));
     timeLabel.setJustificationType(juce::Justification::centredRight);
-    timeLabel.setColour(juce::Label::textColourId, CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
+    timeLabel.setColour(juce::Label::textColourId, CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
     addAndMakeVisible(timeLabel);
 
     bpmLabel.setText("BPM: ---", juce::dontSendNotification);
-    bpmLabel.setFont(juce::Font(juce::FontOptions(11.0f).withStyle("Bold")));
+    bpmLabel.setFont(juce::Font(juce::FontOptions(13.0f).withStyle("Bold")));
     bpmLabel.setJustificationType(juce::Justification::centred);
-    bpmLabel.setColour(juce::Label::textColourId, colour.brighter(0.2f));
+    bpmLabel.setColour(juce::Label::textColourId, colour.brighter(0.3f));
     addAndMakeVisible(bpmLabel);
 
     playButton.setButtonText("PLAY");
@@ -73,6 +73,14 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
     styleDeckButton(loopInButton, colour.darker(0.18f));
     styleDeckButton(loopOutButton, colour.darker(0.10f));
     styleDeckButton(clearLoopButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+
+    for (auto* lb : { &loopBar1_4Button, &loopBar1_2Button, &loopBar1Button,
+                      &loopBar2Button,   &loopBar4Button,   &loopBar8Button })
+    {
+        styleDeckButton(*lb, colour.withAlpha(0.62f));
+        lb->addListener(this);
+        addAndMakeVisible(lb);
+    }
     styleDeckButton(setCueButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
     styleDeckButton(goCueButton, colour.withAlpha(0.75f));
     styleDeckButton(tapButton, colour.withAlpha(0.82f));
@@ -124,6 +132,26 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
     waveformDisplay.onSeek = [this](double pos) { player.setPositionRelative(pos); };
     addAndMakeVisible(waveformDisplay);
 
+    // Hotcue pads
+    for (int i = 0; i < kNumHotcues; ++i)
+    {
+        hotcuePads[static_cast<size_t>(i)].setButtonText(juce::String(i + 1));
+        hotcuePads[static_cast<size_t>(i)].setColour(juce::TextButton::buttonColourId,
+                                                      CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+        hotcuePads[static_cast<size_t>(i)].setColour(juce::TextButton::textColourOffId,
+                                                      CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
+        hotcuePads[static_cast<size_t>(i)].addListener(this);
+        addAndMakeVisible(hotcuePads[static_cast<size_t>(i)]);
+    }
+
+    // Clear all hotcues button
+    clearHotcuesButton.setColour(juce::TextButton::buttonColourId,
+                                 CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).withAlpha(0.55f));
+    clearHotcuesButton.setColour(juce::TextButton::textColourOffId,
+                                 CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
+    clearHotcuesButton.addListener(this);
+    addAndMakeVisible(clearHotcuesButton);
+
     bpmAnalyser_.onResult = [this](double bpm)
     {
         player.setBPM(bpm);
@@ -161,6 +189,14 @@ DeckGUI::~DeckGUI()
                      &lpfButton, &hpfButton, &tapButton,
                      &resetVolumeButton, &resetSpeedButton })
         b->removeListener(this);
+
+    for (auto* lb : { &loopBar1_4Button, &loopBar1_2Button, &loopBar1Button,
+                      &loopBar2Button,   &loopBar4Button,   &loopBar8Button })
+        lb->removeListener(this);
+
+    for (auto& pad : hotcuePads)
+        pad.removeListener(this);
+    clearHotcuesButton.removeListener(this);
 
     for (auto* s : { &volSlider, &speedSlider, &posSlider })
         s->removeListener(this);
@@ -202,6 +238,41 @@ void DeckGUI::paint(juce::Graphics& g)
                                juce::Colours::transparentBlack, bounds.getCentre(), false);
     g.setGradientFill(gloss);
     g.fillRoundedRectangle(bounds, 20.0f);
+
+    // Section panel backgrounds for visual grouping
+    auto sectionBounds = getLocalBounds().toFloat().reduced(14.0f);
+    sectionBounds.removeFromTop(42.0f + 10.0f); // title row + gap
+
+    // Transport section panel
+    auto transportPanel = sectionBounds.removeFromTop(34.0f).expanded(6.0f, 4.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.032f));
+    g.fillRoundedRectangle(transportPanel, 10.0f);
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.28f));
+    g.drawRoundedRectangle(transportPanel, 10.0f, 0.8f);
+
+    sectionBounds.removeFromTop(10.0f); // gap
+
+    // Controls section panel (sliders)
+    auto controlsPanel = sectionBounds.removeFromTop(118.0f).expanded(6.0f, 4.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.022f));
+    g.fillRoundedRectangle(controlsPanel, 10.0f);
+
+    sectionBounds.removeFromTop(10.0f); // gap after controls
+
+    // Hotcue pads row
+    sectionBounds.removeFromTop(26.0f + 10.0f); // hotcue + gap
+
+    // Skip waveform, then effects section
+    const int bottomControlHeight = 130;
+    const int waveformH = juce::jmax(120, static_cast<int>(sectionBounds.getHeight()) - bottomControlHeight - 10);
+    sectionBounds.removeFromTop(static_cast<float>(waveformH) + 10.0f); // waveform + gap
+
+    // Effects / cue / loop section panel
+    auto effectsPanel = sectionBounds.expanded(6.0f, 4.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.028f));
+    g.fillRoundedRectangle(effectsPanel, 10.0f);
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.22f));
+    g.drawRoundedRectangle(effectsPanel, 10.0f, 0.8f);
 }
 
 void DeckGUI::resized()
@@ -210,13 +281,13 @@ void DeckGUI::resized()
     const int gap = 10;
     const int labelW = 74;
 
-    auto titleRow = area.removeFromTop(32);
+    auto titleRow = area.removeFromTop(38);
     auto statePill = titleRow.removeFromLeft(64);
-    stateLabel.setBounds(statePill.reduced(0, 4));
+    stateLabel.setBounds(statePill.reduced(0, 6));
     titleRow.removeFromLeft(8);
-    auto rightInfo = titleRow.removeFromRight(148);
+    auto rightInfo = titleRow.removeFromRight(190);
     deckTitle.setBounds(titleRow);
-    bpmLabel.setBounds(rightInfo.removeFromLeft(72));
+    bpmLabel.setBounds(rightInfo.removeFromLeft(90));
     timeLabel.setBounds(rightInfo);
 
     area.removeFromTop(gap);
@@ -255,8 +326,24 @@ void DeckGUI::resized()
 
     area.removeFromTop(gap);
 
-    const int bottomControlHeight = 102;
-    const int waveformHeight = juce::jmax(150, area.getHeight() - bottomControlHeight - gap);
+    // Hotcue pads row (8 pads + CLR button)
+    auto hotcueRow = area.removeFromTop(26);
+    const int padGap = 3;
+    const int clrW   = 34;
+    const int padsW  = hotcueRow.getWidth() - clrW - padGap;
+    const int padW   = (padsW - padGap * 7) / 8;
+    for (int i = 0; i < kNumHotcues; ++i)
+    {
+        hotcuePads[static_cast<size_t>(i)].setBounds(hotcueRow.removeFromLeft(padW));
+        if (i < kNumHotcues - 1) hotcueRow.removeFromLeft(padGap);
+    }
+    hotcueRow.removeFromLeft(padGap);
+    clearHotcuesButton.setBounds(hotcueRow);
+
+    area.removeFromTop(gap);
+
+    const int bottomControlHeight = 130;
+    const int waveformHeight = juce::jmax(120, area.getHeight() - bottomControlHeight - gap);
     waveformDisplay.setBounds(area.removeFromTop(waveformHeight));
 
     area.removeFromTop(gap);
@@ -271,15 +358,28 @@ void DeckGUI::resized()
 
     bottomControls.removeFromTop(8);
 
-    auto secondActionRow = bottomControls.removeFromTop(28);
+    auto secondActionRow = bottomControls.removeFromTop(24);
     const int secondButtonW = (secondActionRow.getWidth() - buttonGap * 2) / 3;
     loopInButton.setBounds(secondActionRow.removeFromLeft(secondButtonW)); secondActionRow.removeFromLeft(buttonGap);
     loopOutButton.setBounds(secondActionRow.removeFromLeft(secondButtonW)); secondActionRow.removeFromLeft(buttonGap);
     clearLoopButton.setBounds(secondActionRow);
 
-    bottomControls.removeFromTop(10);
+    bottomControls.removeFromTop(6);
 
-    auto filterRow = bottomControls.removeFromTop(28);
+    // Loop bar-length buttons row
+    auto barRow = bottomControls.removeFromTop(22);
+    const int barGap = 4;
+    const int barW = (barRow.getWidth() - barGap * 5) / 6;
+    for (auto* lb : { &loopBar1_4Button, &loopBar1_2Button, &loopBar1Button,
+                      &loopBar2Button,   &loopBar4Button,   &loopBar8Button })
+    {
+        lb->setBounds(barRow.removeFromLeft(barW));
+        if (lb != &loopBar8Button) barRow.removeFromLeft(barGap);
+    }
+
+    bottomControls.removeFromTop(6);
+
+    auto filterRow = bottomControls.removeFromTop(24);
     const int filterButtonW = (filterRow.getWidth() - buttonGap) / 2;
     lpfButton.setBounds(filterRow.removeFromLeft(filterButtonW)); filterRow.removeFromLeft(buttonGap);
     hpfButton.setBounds(filterRow.removeFromLeft(filterButtonW));
@@ -325,13 +425,48 @@ void DeckGUI::buttonClicked(juce::Button* b)
     else if (b == &loopInButton)    player.setLoopIn();
     else if (b == &loopOutButton)   player.setLoopOut();
     else if (b == &clearLoopButton) player.clearLoop();
-    else if (b == &setCueButton)    player.setCuePoint();
-    else if (b == &goCueButton)     player.jumpToCue();
-    else if (b == &tapButton)       recordTap();
+    else if (b == &loopBar1_4Button || b == &loopBar1_2Button || b == &loopBar1Button
+          || b == &loopBar2Button   || b == &loopBar4Button   || b == &loopBar8Button)
+    {
+        const double bpm = player.getBPM();
+        if (bpm > 0.0)
+        {
+            double bars = 1.0;
+            if      (b == &loopBar1_4Button) bars = 0.25;
+            else if (b == &loopBar1_2Button) bars = 0.5;
+            else if (b == &loopBar2Button)   bars = 2.0;
+            else if (b == &loopBar4Button)   bars = 4.0;
+            else if (b == &loopBar8Button)   bars = 8.0;
+
+            const double secondsPerBar = (60.0 / bpm) * 4.0;  // 4/4 time
+            player.setLoopFromCurrentPosition(bars * secondsPerBar);
+        }
+    }
+    else if (b == &setCueButton)      player.setCuePoint();
+    else if (b == &goCueButton)       player.jumpToCue();
+    else if (b == &tapButton)         recordTap();
     else if (b == &resetVolumeButton) resetVolumeToDefault();
     else if (b == &resetSpeedButton)  resetSpeedToDefault();
-    else if (b == &lpfButton)       player.setLowPassEnabled(!player.isLowPassEnabled());
-    else if (b == &hpfButton)       player.setHighPassEnabled(!player.isHighPassEnabled());
+    else if (b == &lpfButton)            player.setLowPassEnabled(!player.isLowPassEnabled());
+    else if (b == &hpfButton)            player.setHighPassEnabled(!player.isHighPassEnabled());
+    else if (b == &clearHotcuesButton)   clearAllHotcues();
+
+    // Hotcue pads (standalone check — not part of the if-else chain)
+    for (int i = 0; i < kNumHotcues; ++i)
+    {
+        if (b == &hotcuePads[static_cast<size_t>(i)])
+        {
+            if (juce::ModifierKeys::getCurrentModifiers().isShiftDown())
+                player.clearHotcue(i);
+            else if (player.isHotcueSet(i))
+                player.jumpToHotcue(i);
+            else
+                player.setHotcue(i);
+
+            updateHotcuePadColors();
+            break;
+        }
+    }
 }
 
 void DeckGUI::sliderValueChanged(juce::Slider* s)
@@ -437,9 +572,13 @@ void DeckGUI::loadFile(const juce::File& file)
     waveformDisplay.loadURL(juce::URL{ file });
     waveformDisplay.setCueMarker(0.0);
     waveformDisplay.setLoopRegion(0.0, 0.0, false);
+    waveformDisplay.setTotalDuration(player.getTotalLength());
     deckTitle.setText(file.getFileNameWithoutExtension(), juce::dontSendNotification);
     bpmLabel.setText("BPM: ...", juce::dontSendNotification);
     bpmAnalyser_.analyse(file, formatManager_);
+
+    // Auto-clear all hotcues when a new track is loaded
+    clearAllHotcues();
 }
 
 void DeckGUI::triggerSync()
@@ -466,6 +605,37 @@ void DeckGUI::resetVolumeToDefault()
 void DeckGUI::resetSpeedToDefault()
 {
     speedSlider.setValue(1.0, juce::sendNotificationSync);
+}
+
+void DeckGUI::clearAllHotcues()
+{
+    for (int i = 0; i < kNumHotcues; ++i)
+        player.clearHotcue(i);
+    updateHotcuePadColors();
+}
+
+void DeckGUI::updateHotcuePadColors()
+{
+    // Cycle through 4 accent colours for the 8 pads
+    const juce::Colour setColours[4] = {
+        deckColour_.brighter(0.2f),
+        CustomLookAndFeel::colour(CustomLookAndFeel::accentGreenValue).withAlpha(0.85f),
+        CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.85f),
+        CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).withAlpha(0.80f)
+    };
+
+    for (int i = 0; i < kNumHotcues; ++i)
+    {
+        const bool isSet = player.isHotcueSet(i);
+        hotcuePads[static_cast<size_t>(i)].setColour(
+            juce::TextButton::buttonColourId,
+            isSet ? setColours[i % 4]
+                  : CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+        hotcuePads[static_cast<size_t>(i)].setColour(
+            juce::TextButton::textColourOffId,
+            isSet ? CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue)
+                  : CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
+    }
 }
 
 void DeckGUI::recordTap()

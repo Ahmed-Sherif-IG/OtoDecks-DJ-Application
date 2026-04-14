@@ -219,6 +219,49 @@ void DJAudioPlayer::clearLoop()
 
 bool DJAudioPlayer::isLoopEnabled() const { return loopEnabled_; }
 
+//==============================================================================
+void DJAudioPlayer::setHotcue(int index)
+{
+    if (index >= 0 && index < kNumHotcues)
+        hotcues_[static_cast<size_t>(index)] = transportSource.getCurrentPosition();
+}
+
+void DJAudioPlayer::jumpToHotcue(int index)
+{
+    if (index >= 0 && index < kNumHotcues && hotcues_[static_cast<size_t>(index)] >= 0.0)
+        transportSource.setPosition(hotcues_[static_cast<size_t>(index)]);
+}
+
+void DJAudioPlayer::clearHotcue(int index)
+{
+    if (index >= 0 && index < kNumHotcues)
+        hotcues_[static_cast<size_t>(index)] = -1.0;
+}
+
+double DJAudioPlayer::getHotcue(int index) const
+{
+    if (index >= 0 && index < kNumHotcues)
+        return hotcues_[static_cast<size_t>(index)];
+    return -1.0;
+}
+
+bool DJAudioPlayer::isHotcueSet(int index) const
+{
+    return index >= 0 && index < kNumHotcues
+        && hotcues_[static_cast<size_t>(index)] >= 0.0;
+}
+
+void DJAudioPlayer::setLoopFromCurrentPosition(double durationSeconds)
+{
+    const double start = transportSource.getCurrentPosition();
+    const double total = transportSource.getLengthInSeconds();
+    if (total <= 0.0 || durationSeconds <= 0.0) return;
+
+    loopStart_   = start;
+    loopEnd_     = juce::jmin(start + durationSeconds, total);
+    loopEnabled_ = (loopEnd_ > loopStart_);
+}
+
 void DJAudioPlayer::checkAndLoopIfNeeded()
 {
     if (!loopEnabled_ || !isLoaded_) return;

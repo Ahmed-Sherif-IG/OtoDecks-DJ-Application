@@ -34,11 +34,16 @@ public:
     // M5: beat positions in relative coords for grid overlay
     void setBeatPositions(const std::vector<double>& beats);
 
+    // Set total track duration (seconds) for hover tooltip
+    void setTotalDuration(double seconds);
+
 private:
     void seekToX(int x);
 
     void mouseDown(const juce::MouseEvent& e) override;
     void mouseDrag(const juce::MouseEvent& e) override;
+    void mouseMove(const juce::MouseEvent& e) override;
+    void mouseExit(const juce::MouseEvent& e) override;
 
     juce::AudioThumbnail audioThumb;
     bool   fileLoaded    = false;
@@ -52,6 +57,11 @@ private:
     double cueMarker_    = 0.0;
 
     std::vector<double> beatPositions_;
+
+    // Hover tooltip state
+    double totalDuration_ = 0.0;
+    int    hoverX_        = -1;
+    bool   mouseInside_   = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WaveformDisplay)
 };

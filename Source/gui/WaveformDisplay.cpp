@@ -17,19 +17,17 @@ WaveformDisplay::~WaveformDisplay()
 void WaveformDisplay::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
-    const float w = bounds.getWidth();
-    const float h = bounds.getHeight();
 
-    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).brighter(0.04f),
+    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).brighter(0.06f),
                                     bounds.getTopLeft(),
-                                    juce::Colour(0xFF090E15),
+                                    juce::Colour(0xFF04070E),
                                     bounds.getBottomLeft(),
                                     false);
     g.setGradientFill(background);
     g.fillRoundedRectangle(bounds, 14.0f);
 
     auto screen = bounds.reduced(2.0f);
-    g.setColour(juce::Colour(0xFF05080D).withAlpha(0.55f));
+    g.setColour(juce::Colour(0xFF030508).withAlpha(0.60f));
     g.fillRoundedRectangle(screen, 12.0f);
 
     g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
@@ -118,6 +116,36 @@ void WaveformDisplay::paint(juce::Graphics& g)
                                juce::Colours::transparentBlack, bounds.getCentre(), false);
     g.setGradientFill(gloss);
     g.fillRoundedRectangle(bounds.reduced(1.0f), 12.0f);
+
+    // Hover time tooltip
+    if (mouseInside_ && hoverX_ >= 0 && fileLoaded && totalDuration_ > 0.0)
+    {
+        const float hx = static_cast<float>(hoverX_);
+        const double hoverPos = juce::jlimit(0.0, 1.0, static_cast<double>(hoverX_) / getWidth());
+        const double hoverSec = hoverPos * totalDuration_;
+
+        const int hm = static_cast<int>(hoverSec) / 60;
+        const int hs = static_cast<int>(hoverSec) % 60;
+        const juce::String tooltip = juce::String(hm) + ":" + juce::String(hs).paddedLeft('0', 2);
+
+        // Semi-transparent vertical line at hover position
+        g.setColour(juce::Colours::white.withAlpha(0.25f));
+        g.drawLine(hx, bounds.getY() + 4.0f, hx, bounds.getBottom() - 4.0f, 1.0f);
+
+        // Tooltip pill
+        const int tipW = 44;
+        const int tipH = 20;
+        float tipX = static_cast<float>(hoverX_) - static_cast<float>(tipW) / 2.0f;
+        tipX = juce::jlimit(bounds.getX() + 4.0f, bounds.getRight() - tipW - 4.0f, tipX);
+        const float tipY = bounds.getY() + 6.0f;
+        const juce::Rectangle<float> tipRect(tipX, tipY, tipW, tipH);
+
+        g.setColour(juce::Colours::black.withAlpha(0.72f));
+        g.fillRoundedRectangle(tipRect, 6.0f);
+        g.setColour(juce::Colours::white.withAlpha(0.85f));
+        g.setFont(juce::Font(juce::FontOptions(11.0f).withStyle("Bold")));
+        g.drawText(tooltip, tipRect.toNearestInt(), juce::Justification::centred, false);
+    }
 }
 
 void WaveformDisplay::resized() {}
@@ -192,4 +220,23 @@ void WaveformDisplay::mouseDown(const juce::MouseEvent& e)
 void WaveformDisplay::mouseDrag(const juce::MouseEvent& e)
 {
     seekToX(e.x);
+}
+
+void WaveformDisplay::mouseMove(const juce::MouseEvent& e)
+{
+    hoverX_      = e.x;
+    mouseInside_ = true;
+    repaint();
+}
+
+void WaveformDisplay::mouseExit(const juce::MouseEvent&)
+{
+    mouseInside_ = false;
+    hoverX_      = -1;
+    repaint();
+}
+
+void WaveformDisplay::setTotalDuration(double seconds)
+{
+    totalDuration_ = seconds;
 }

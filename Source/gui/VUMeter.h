@@ -19,6 +19,26 @@ public:
     void paint(juce::Graphics& g) override
     {
         auto bounds = getLocalBounds().toFloat();
+
+        // Clip LED at top (6px high)
+        const float ledH = 6.0f;
+        auto ledRect = bounds.removeFromTop(ledH + 2.0f);
+        ledRect = ledRect.reduced(1.0f, 0.0f).withHeight(ledH);
+        if (clipped_)
+        {
+            g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue));
+            g.fillRoundedRectangle(ledRect, 2.0f);
+            g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).brighter(0.5f).withAlpha(0.5f));
+            g.drawRoundedRectangle(ledRect, 2.0f, 1.0f);
+        }
+        else
+        {
+            g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+            g.fillRoundedRectangle(ledRect, 2.0f);
+            g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.5f));
+            g.drawRoundedRectangle(ledRect, 2.0f, 0.8f);
+        }
+
         auto frame = bounds.reduced(1.0f);
         const float level = juce::jlimit(0.0f, 1.0f, getLevel ? getLevel() : 0.0f);
         const float visualLevel = std::pow(level, 0.72f);
@@ -51,10 +71,21 @@ public:
         g.drawHorizontalLine(static_cast<int>(peakY), inner.getX(), inner.getRight());
     }
 
+    void mouseDown(const juce::MouseEvent&) override
+    {
+        // Click anywhere on VU meter resets clip LED
+        clipped_ = false;
+        repaint();
+    }
+
 private:
     void timerCallback() override
     {
         const float current = getLevel ? getLevel() : 0.0f;
+
+        // Clip detection: trigger when level exceeds 0.98
+        if (current >= 0.98f)
+            clipped_ = true;
 
         if (current >= peakLevel_)
         {
@@ -76,6 +107,7 @@ private:
     std::function<float()> getLevel;
     float peakLevel_      = 0.0f;
     int   peakHoldFrames_ = 0;
+    bool  clipped_        = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VUMeter)
 };

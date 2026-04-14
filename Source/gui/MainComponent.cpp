@@ -40,6 +40,7 @@ MainComponent::MainComponent()
     {
         if (deckNumber == 1) { player1.loadURL(juce::URL{ file }); deckGUI1->loadFile(file); }
         else if (deckNumber == 2) { player2.loadURL(juce::URL{ file }); deckGUI2->loadFile(file); }
+        playlistComponent.setNowPlayingFile(file);
     };
 
     playlistComponent.onNowPlaying = [this](int deck, const juce::String& info)
@@ -94,16 +95,19 @@ void MainComponent::releaseResources()
 void MainComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
-    juce::ColourGradient background(juce::Colour(0xFF060A11), bounds.getTopLeft(),
-                                    juce::Colour(0xFF0D1420), bounds.getBottomLeft(), false);
+    juce::ColourGradient background(juce::Colour(0xFF040710), bounds.getTopLeft(),
+                                    juce::Colour(0xFF08101C), bounds.getBottomLeft(), false);
     g.setGradientFill(background);
     g.fillAll();
 
-    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.10f));
-    g.fillEllipse(-160.0f, -110.0f, 420.0f, 260.0f);
-    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.09f));
-    g.fillEllipse(static_cast<float>(getWidth() - 260), -40.0f, 360.0f, 220.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.025f));
+    // Deck A (blue) ambient glow
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.13f));
+    g.fillEllipse(-140.0f, -90.0f, 460.0f, 280.0f);
+    // Deck B (orange) ambient glow
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.11f));
+    g.fillEllipse(static_cast<float>(getWidth() - 300), -60.0f, 420.0f, 260.0f);
+    // Subtle separator lines
+    g.setColour(juce::Colours::white.withAlpha(0.018f));
     g.drawHorizontalLine(82, 20.0f, static_cast<float>(getWidth() - 20));
     g.drawHorizontalLine(static_cast<int>(getHeight() * 0.66f), 20.0f, static_cast<float>(getWidth() - 20));
 }

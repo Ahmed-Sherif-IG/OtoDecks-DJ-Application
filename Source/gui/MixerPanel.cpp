@@ -73,13 +73,17 @@ MixerPanel::MixerPanel(DJAudioPlayer& p1, DJAudioPlayer& p2, std::atomic<float>&
 
     for (int i = 0; i < 3; ++i)
     {
-        styleSlider(*eqSliders1[i], juce::Slider::LinearVertical, -12.0, 12.0, 0.0, blue);
+        styleSlider(*eqSliders1[i], juce::Slider::Rotary, -12.0, 12.0, 0.0, blue);
+        eqSliders1[i]->setRotaryParameters(juce::MathConstants<float>::pi * 1.25f,
+                                            juce::MathConstants<float>::pi * 2.75f, true);
         eqSliders1[i]->addListener(this);
         styleLabel(*eqLabels1[i], eqTexts1[i], blue.withAlpha(0.88f));
         addAndMakeVisible(*eqSliders1[i]);
         addAndMakeVisible(*eqLabels1[i]);
 
-        styleSlider(*eqSliders2[i], juce::Slider::LinearVertical, -12.0, 12.0, 0.0, orange);
+        styleSlider(*eqSliders2[i], juce::Slider::Rotary, -12.0, 12.0, 0.0, orange);
+        eqSliders2[i]->setRotaryParameters(juce::MathConstants<float>::pi * 1.25f,
+                                            juce::MathConstants<float>::pi * 2.75f, true);
         eqSliders2[i]->addListener(this);
         styleLabel(*eqLabels2[i], eqTexts2[i], orange.withAlpha(0.88f));
         addAndMakeVisible(*eqSliders2[i]);
@@ -95,6 +99,21 @@ MixerPanel::MixerPanel(DJAudioPlayer& p1, DJAudioPlayer& p2, std::atomic<float>&
     addAndMakeVisible(resetMixerButton);
     addAndMakeVisible(resetEq1Button);
     addAndMakeVisible(resetEq2Button);
+
+    // Crossfader curve buttons
+    auto setupCurveButton = [&](juce::TextButton& btn, bool active)
+    {
+        btn.setClickingTogglesState(false);
+        btn.setColour(juce::TextButton::buttonColourId,
+                      active ? CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.8f)
+                             : CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+        btn.setColour(juce::TextButton::textColourOffId, CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
+        btn.addListener(this);
+        addAndMakeVisible(btn);
+    };
+    setupCurveButton(curveLinearButton, false);
+    setupCurveButton(curveEqPowButton,  true);   // default is EqualPower
+    setupCurveButton(curveCutButton,    false);
 
     addAndMakeVisible(vuMeter1);
     addAndMakeVisible(vuMeter2);
@@ -114,6 +133,9 @@ MixerPanel::~MixerPanel()
     resetMixerButton.removeListener(this);
     resetEq1Button.removeListener(this);
     resetEq2Button.removeListener(this);
+    curveLinearButton.removeListener(this);
+    curveEqPowButton.removeListener(this);
+    curveCutButton.removeListener(this);
 }
 
 //==============================================================================
@@ -193,14 +215,19 @@ void MixerPanel::resized()
     auto layoutEqColumn = [&](juce::Rectangle<int> eqArea, juce::Slider& low, juce::Slider& mid, juce::Slider& high,
                               juce::Label& lowLabel, juce::Label& midLabel, juce::Label& highLabel)
     {
-        const int bandGap = 8;
+        const int bandGap = 4;
         const int bandHeight = (eqArea.getHeight() - bandGap * 2) / 3;
+        const int knobSize = juce::jmin(eqArea.getWidth(), bandHeight - labelH);
 
         auto placeBand = [&](juce::Rectangle<int> bandArea, juce::Slider& slider, juce::Label& label)
         {
-            auto labelArea = bandArea.removeFromTop(labelH);
+            auto labelArea = bandArea.removeFromBottom(labelH);
             label.setBounds(labelArea);
-            slider.setBounds(bandArea.reduced(6, 2));
+            // Centre the rotary knob square in remaining area
+            const int sz = juce::jmin(bandArea.getWidth(), bandArea.getHeight(), knobSize);
+            const int cx = bandArea.getCentreX() - sz / 2;
+            const int cy = bandArea.getCentreY() - sz / 2;
+            slider.setBounds(cx, cy, sz, sz);
         };
 
         auto lowArea = eqArea.removeFromTop(bandHeight);
@@ -236,7 +263,19 @@ void MixerPanel::resized()
     resetRow.removeFromLeft(resetGap);
     resetEq2Button.setBounds(resetRow);
 
-    lowerSection.removeFromTop(8);
+    lowerSection.removeFromTop(6);
+
+    // Crossfader curve buttons
+    auto curveRow = lowerSection.removeFromTop(20);
+    const int curveGap = 3;
+    const int curveW = (curveRow.getWidth() - curveGap * 2) / 3;
+    curveLinearButton.setBounds(curveRow.removeFromLeft(curveW));
+    curveRow.removeFromLeft(curveGap);
+    curveEqPowButton.setBounds(curveRow.removeFromLeft(curveW));
+    curveRow.removeFromLeft(curveGap);
+    curveCutButton.setBounds(curveRow);
+
+    lowerSection.removeFromTop(4);
     crossfader.setBounds(lowerSection.removeFromTop(28).reduced(2, 2));
 }
 
@@ -267,6 +306,27 @@ void MixerPanel::buttonClicked(juce::Button* button)
         resetDeck1EQ();
     else if (button == &resetEq2Button)
         resetDeck2EQ();
+    else if (button == &curveLinearButton || button == &curveEqPowButton || button == &curveCutButton)
+    {
+        if (button == &curveLinearButton)
+            crossfaderCurve_ = CrossfaderCurve::Linear;
+        else if (button == &curveEqPowButton)
+            crossfaderCurve_ = CrossfaderCurve::EqualPower;
+        else
+            crossfaderCurve_ = CrossfaderCurve::Cut;
+
+        // Update button highlight
+        const auto activeColour   = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.8f);
+        const auto inactiveColour = CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue);
+        curveLinearButton.setColour(juce::TextButton::buttonColourId,
+                                    crossfaderCurve_ == CrossfaderCurve::Linear ? activeColour : inactiveColour);
+        curveEqPowButton.setColour(juce::TextButton::buttonColourId,
+                                    crossfaderCurve_ == CrossfaderCurve::EqualPower ? activeColour : inactiveColour);
+        curveCutButton.setColour(juce::TextButton::buttonColourId,
+                                    crossfaderCurve_ == CrossfaderCurve::Cut ? activeColour : inactiveColour);
+
+        applyCrossfader(crossfader.getValue());
+    }
 }
 
 void MixerPanel::resetDeck1EQ()
@@ -295,9 +355,29 @@ void MixerPanel::resetMixerDefaults()
 
 void MixerPanel::applyCrossfader(double pos)
 {
-    const double angle = pos * juce::MathConstants<double>::halfPi;
-    const double g1 = std::cos(angle);
-    const double g2 = std::sin(angle);
+    double g1 = 1.0, g2 = 1.0;
+
+    switch (crossfaderCurve_)
+    {
+        case CrossfaderCurve::Linear:
+            g1 = 1.0 - pos;
+            g2 = pos;
+            break;
+
+        case CrossfaderCurve::EqualPower:
+        {
+            const double angle = pos * juce::MathConstants<double>::halfPi;
+            g1 = std::cos(angle);
+            g2 = std::sin(angle);
+            break;
+        }
+
+        case CrossfaderCurve::Cut:
+            // Hard cut: each side at full until centre, then silence
+            g1 = (pos <= 0.5) ? 1.0 : 0.0;
+            g2 = (pos >= 0.5) ? 1.0 : 0.0;
+            break;
+    }
 
     const double masterBoost = juce::jmap(masterSlider.getValue(), 0.0, 1.0, 0.65, 1.45);
     player1_.setCrossfaderGain(juce::jlimit(0.0, 2.0, g1 * masterBoost));

@@ -25,6 +25,9 @@ private:
     void resetDeck1EQ();
     void resetDeck2EQ();
 
+    enum class CrossfaderCurve { Linear, EqualPower, Cut };
+    CrossfaderCurve crossfaderCurve_ { CrossfaderCurve::EqualPower };
+
     DJAudioPlayer& player1_;
     DJAudioPlayer& player2_;
     std::atomic<float>& masterGain_;
@@ -51,6 +54,11 @@ private:
     juce::Slider low2Slider,  mid2Slider,  high2Slider;
     juce::Label  low2Label,   mid2Label,   high2Label;
     juce::TextButton resetEq2Button{ "RESET B" };
+
+    // Crossfader curve buttons
+    juce::TextButton curveLinearButton  { "LIN" };
+    juce::TextButton curveEqPowButton   { "EQP" };
+    juce::TextButton curveCutButton     { "CUT" };
 
     // VU meters
     VUMeter vuMeter1;

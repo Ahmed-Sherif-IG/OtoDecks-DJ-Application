@@ -63,6 +63,10 @@ public:
     // Called after a track is loaded — supplies "Artist - Title" for the deck header
     std::function<void(int deckNumber, const juce::String& nowPlayingText)> onNowPlaying;
 
+    // Mark a file as now playing to highlight its row
+    void setNowPlayingFile(const juce::File& file);
+    juce::File nowPlayingFile_;
+
     std::unique_ptr<juce::FileChooser> fileChooser;
 
 private:
