@@ -21,6 +21,7 @@ public:
         auto bounds = getLocalBounds().toFloat();
         auto frame = bounds.reduced(1.0f);
         const float level = juce::jlimit(0.0f, 1.0f, getLevel ? getLevel() : 0.0f);
+        const float visualLevel = std::pow(level, 0.72f);
 
         g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
         g.fillRoundedRectangle(frame, 8.0f);
@@ -39,12 +40,13 @@ public:
                                            CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue), inner.withY(inner.getHeight() * 0.35f).getTopLeft(), false);
         meterGradient.addColour(0.9, CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue));
 
-        const float fillHeight = inner.getHeight() * level;
+        const float fillHeight = inner.getHeight() * visualLevel;
         auto fill = inner.removeFromBottom(fillHeight);
         g.setGradientFill(meterGradient);
         g.fillRoundedRectangle(fill, 5.0f);
 
-        const float peakY = inner.getY() + (1.0f - peakLevel_) * inner.getHeight();
+        const float visualPeak = std::pow(peakLevel_, 0.72f);
+        const float peakY = inner.getY() + (1.0f - visualPeak) * inner.getHeight();
         g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue).withAlpha(0.9f));
         g.drawHorizontalLine(static_cast<int>(peakY), inner.getX(), inner.getRight());
     }

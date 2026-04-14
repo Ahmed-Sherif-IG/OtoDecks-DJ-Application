@@ -59,7 +59,11 @@ PlaylistComponent::~PlaylistComponent()
 void PlaylistComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat().reduced(1.0f);
-    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.03f),
+
+    juce::DropShadow shadow(juce::Colours::black.withAlpha(0.38f), 16, { 0, 8 });
+    shadow.drawForRectangle(g, bounds.toNearestInt());
+
+    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).brighter(0.03f),
                                     bounds.getTopLeft(),
                                     CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue),
                                     bounds.getBottomLeft(),
@@ -67,8 +71,12 @@ void PlaylistComponent::paint(juce::Graphics& g)
     g.setGradientFill(background);
     g.fillRoundedRectangle(bounds, 18.0f);
 
+    auto topGlow = bounds.removeFromTop(42.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.035f));
+    g.fillRoundedRectangle(topGlow, 18.0f);
+
     g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
-    g.drawRoundedRectangle(bounds, 18.0f, 1.2f);
+    g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 18.0f, 1.2f);
 }
 
 void PlaylistComponent::resized()
@@ -115,9 +123,9 @@ void PlaylistComponent::paintRowBackground(juce::Graphics& g,
                                            int /*width*/, int /*height*/,
                                            bool rowIsSelected)
 {
-    const auto evenColour = CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).brighter(0.02f);
-    const auto oddColour  = CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).darker(0.08f);
-    const auto selected   = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.22f);
+    const auto evenColour = CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).brighter(0.03f);
+    const auto oddColour  = CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).darker(0.10f);
+    const auto selected   = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.24f);
 
     g.fillAll(rowIsSelected ? selected : ((rowNumber % 2 == 0) ? evenColour : oddColour));
 }

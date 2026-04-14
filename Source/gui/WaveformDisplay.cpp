@@ -20,16 +20,20 @@ void WaveformDisplay::paint(juce::Graphics& g)
     const float w = bounds.getWidth();
     const float h = bounds.getHeight();
 
-    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.05f),
+    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).brighter(0.04f),
                                     bounds.getTopLeft(),
-                                    juce::Colour(0xFF0E1219),
+                                    juce::Colour(0xFF090E15),
                                     bounds.getBottomLeft(),
                                     false);
     g.setGradientFill(background);
-    g.fillRoundedRectangle(bounds, 12.0f);
+    g.fillRoundedRectangle(bounds, 14.0f);
+
+    auto screen = bounds.reduced(2.0f);
+    g.setColour(juce::Colour(0xFF05080D).withAlpha(0.55f));
+    g.fillRoundedRectangle(screen, 12.0f);
 
     g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
-    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 14.0f, 1.0f);
 
     auto inner = bounds.reduced(10.0f, 12.0f);
 
@@ -44,8 +48,15 @@ void WaveformDisplay::paint(juce::Graphics& g)
     for (int i = 1; i < 4; ++i)
     {
         const float y = inner.getY() + inner.getHeight() * (static_cast<float>(i) / 4.0f);
-        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.28f));
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.24f));
         g.drawHorizontalLine(static_cast<int>(y), inner.getX(), inner.getRight());
+    }
+
+    for (int i = 1; i < 16; ++i)
+    {
+        const float x = inner.getX() + inner.getWidth() * (static_cast<float>(i) / 16.0f);
+        g.setColour(juce::Colours::white.withAlpha(0.035f));
+        g.drawVerticalLine(static_cast<int>(x), inner.getY(), inner.getBottom());
     }
 
     if (loopActive_ && loopEndRel_ > loopStartRel_)
@@ -57,8 +68,11 @@ void WaveformDisplay::paint(juce::Graphics& g)
         g.fillRoundedRectangle(loopRect, 8.0f);
     }
 
-    g.setColour(waveformColour.withAlpha(0.95f));
+    g.setColour(waveformColour.withAlpha(0.98f));
     audioThumb.drawChannel(g, inner.toNearestInt(), 0.0, audioThumb.getTotalLength(), 0, 0.95f);
+
+    g.setColour(waveformColour.withAlpha(0.10f));
+    g.fillRect(inner.withHeight(inner.getHeight() * 0.5f).withY(inner.getCentreY() - inner.getHeight() * 0.25f));
 
     if (!beatPositions_.empty())
     {
@@ -94,9 +108,11 @@ void WaveformDisplay::paint(juce::Graphics& g)
     }
 
     const float px = inner.getX() + static_cast<float>(position * inner.getWidth());
+    g.setColour(juce::Colours::white.withAlpha(0.18f));
+    g.drawLine(px, inner.getY(), px, inner.getBottom(), 5.0f);
     g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.drawLine(px, inner.getY(), px, inner.getBottom(), 2.4f);
-    g.fillEllipse(px - 5.0f, inner.getCentreY() - 5.0f, 10.0f, 10.0f);
+    g.drawLine(px, inner.getY(), px, inner.getBottom(), 2.2f);
+    g.fillEllipse(px - 5.5f, inner.getCentreY() - 5.5f, 11.0f, 11.0f);
 
     juce::ColourGradient gloss(juce::Colours::white.withAlpha(0.07f), bounds.getTopLeft(),
                                juce::Colours::transparentBlack, bounds.getCentre(), false);

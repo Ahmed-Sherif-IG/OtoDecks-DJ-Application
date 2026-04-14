@@ -16,9 +16,9 @@ public:
         addAndMakeVisible(deck2Button);
         addAndMakeVisible(removeButton);
 
-        deck1Button.setButtonText("Deck 1");
-        deck2Button.setButtonText("Deck 2");
-        removeButton.setButtonText("Remove");
+        deck1Button.setButtonText("LOAD A");
+        deck2Button.setButtonText("LOAD B");
+        removeButton.setButtonText("DELETE");
 
         deck1Button.addListener(this);
         deck2Button.addListener(this);
@@ -31,13 +31,13 @@ public:
 
     void resized() override
     {
-        auto area        = getLocalBounds().reduced(4);
-        int  buttonWidth = (area.getWidth() - 8) / 3;
+        auto area        = getLocalBounds().reduced(4, 3);
+        int  buttonWidth = (area.getWidth() - 12) / 3;
 
         deck1Button.setBounds(area.removeFromLeft(buttonWidth));
-        area.removeFromLeft(4);
+        area.removeFromLeft(6);
         deck2Button.setBounds(area.removeFromLeft(buttonWidth));
-        area.removeFromLeft(4);
+        area.removeFromLeft(6);
         removeButton.setBounds(area.removeFromLeft(buttonWidth));
     }
 
