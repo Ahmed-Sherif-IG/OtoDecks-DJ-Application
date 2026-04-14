@@ -22,6 +22,7 @@ PlaylistComponent::PlaylistComponent()
     header.setColour(juce::TableHeaderComponent::textColourId,       CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
 
     tableComponent.setModel(this);
+    tableComponent.setRowHeight(28);
     tableComponent.setColour(juce::ListBox::backgroundColourId, CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue));
     tableComponent.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible(tableComponent);
@@ -59,7 +60,11 @@ PlaylistComponent::~PlaylistComponent()
 void PlaylistComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat().reduced(1.0f);
-    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.03f),
+
+    juce::DropShadow shadow(juce::Colours::black.withAlpha(0.38f), 16, { 0, 8 });
+    shadow.drawForRectangle(g, bounds.toNearestInt());
+
+    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).brighter(0.03f),
                                     bounds.getTopLeft(),
                                     CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue),
                                     bounds.getBottomLeft(),
@@ -67,8 +72,12 @@ void PlaylistComponent::paint(juce::Graphics& g)
     g.setGradientFill(background);
     g.fillRoundedRectangle(bounds, 18.0f);
 
+    auto topGlow = bounds.removeFromTop(42.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.035f));
+    g.fillRoundedRectangle(topGlow, 18.0f);
+
     g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
-    g.drawRoundedRectangle(bounds, 18.0f, 1.2f);
+    g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 18.0f, 1.2f);
 }
 
 void PlaylistComponent::resized()
@@ -112,14 +121,45 @@ std::vector<int> PlaylistComponent::getFilteredIndices() const
 
 void PlaylistComponent::paintRowBackground(juce::Graphics& g,
                                            int rowNumber,
-                                           int /*width*/, int /*height*/,
+                                           int width, int height,
                                            bool rowIsSelected)
 {
-    const auto evenColour = CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).brighter(0.02f);
-    const auto oddColour  = CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).darker(0.08f);
-    const auto selected   = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.22f);
+    const auto evenColour    = CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).brighter(0.03f);
+    const auto oddColour     = CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).darker(0.10f);
+    const auto selectedColor = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.24f);
 
-    g.fillAll(rowIsSelected ? selected : ((rowNumber % 2 == 0) ? evenColour : oddColour));
+    // Check if this row is the now-playing track
+    bool isNowPlaying = false;
+    if (nowPlayingFile_.existsAsFile())
+    {
+        auto fi = getFilteredIndices();
+        if (rowNumber < static_cast<int>(fi.size()))
+        {
+            const int idx = fi[static_cast<size_t>(rowNumber)];
+            if (idx >= 0 && idx < static_cast<int>(tracks.size()))
+                isNowPlaying = (tracks[static_cast<size_t>(idx)].file == nowPlayingFile_);
+        }
+    }
+
+    const auto baseColour = rowIsSelected ? selectedColor : ((rowNumber % 2 == 0) ? evenColour : oddColour);
+    g.fillAll(baseColour);
+
+    if (isNowPlaying)
+    {
+        // Accent underline at bottom of row
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentGreenValue).withAlpha(0.85f));
+        g.fillRect(0, height - 2, width, 2);
+
+        // Subtle green tint overlay
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentGreenValue).withAlpha(0.08f));
+        g.fillAll();
+    }
+}
+
+void PlaylistComponent::setNowPlayingFile(const juce::File& file)
+{
+    nowPlayingFile_ = file;
+    tableComponent.repaint();
 }
 
 void PlaylistComponent::paintCell(juce::Graphics& g,

@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "../shared/DeckState.h"
+#include <array>
 
 class DJAudioPlayer : public juce::AudioSource
 {
@@ -36,11 +37,21 @@ public:
     void clearLoop();
     bool isLoopEnabled() const;
     void checkAndLoopIfNeeded();
+    // Set loop of exactly durationSeconds starting at current position
+    void setLoopFromCurrentPosition(double durationSeconds);
 
     // Cue (M2)
     void   setCuePoint();
     void   jumpToCue();
     double getCuePoint() const;
+
+    // Hotcues: 8 slots per deck
+    static constexpr int kNumHotcues = 8;
+    void   setHotcue(int index);           // set hotcue[index] = current position
+    void   jumpToHotcue(int index);        // seek to hotcue[index]
+    void   clearHotcue(int index);         // clear hotcue[index]
+    double getHotcue(int index) const;     // returns -1 if not set
+    bool   isHotcueSet(int index) const;
 
     // EQ (M3) — dB, range [-12, +12]
     void setEQLow (double dB);
@@ -104,7 +115,8 @@ private:
     double sampleRate_ = 44100.0;
     std::atomic<bool> eqDirty_{ false };
 
-    juce::IIRFilter lowFilters_[2];
+    juce::IIRFilter lowCutFilters_[2];
+    juce::IIRFilter lowBoostFilters_[2];
     juce::IIRFilter midFilters_[2];
     juce::IIRFilter highFilters_[2];
 
@@ -114,6 +126,7 @@ private:
     std::atomic<bool> filterDirty_{ false };
     juce::IIRFilter lpFilters_[2];
     juce::IIRFilter hpFilters_[2];
+    juce::IIRFilter highCutFilters_[2];
 
     // M6: delay
     bool   delayEnabled_   = false;
@@ -128,6 +141,9 @@ private:
 
     // BPM
     std::atomic<double> bpm_{ 0.0 };
+
+    // Hotcues
+    std::array<double, kNumHotcues> hotcues_{ -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DJAudioPlayer)
 };

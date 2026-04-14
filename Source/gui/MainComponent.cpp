@@ -40,6 +40,7 @@ MainComponent::MainComponent()
     {
         if (deckNumber == 1) { player1.loadURL(juce::URL{ file }); deckGUI1->loadFile(file); }
         else if (deckNumber == 2) { player2.loadURL(juce::URL{ file }); deckGUI2->loadFile(file); }
+        playlistComponent.setNowPlayingFile(file);
     };
 
     playlistComponent.onNowPlaying = [this](int deck, const juce::String& info)
@@ -94,25 +95,28 @@ void MainComponent::releaseResources()
 void MainComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
-    juce::ColourGradient background(juce::Colour(0xFF0C1017), bounds.getTopLeft(),
-                                    juce::Colour(0xFF121826), bounds.getBottomLeft(), false);
+    juce::ColourGradient background(juce::Colour(0xFF060A11), bounds.getTopLeft(),
+                                    juce::Colour(0xFF0D1420), bounds.getBottomLeft(), false);
     g.setGradientFill(background);
     g.fillAll();
 
-    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.08f));
-    g.fillEllipse(-120.0f, -80.0f, 360.0f, 220.0f);
-    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.08f));
-    g.fillEllipse(static_cast<float>(getWidth() - 220), static_cast<float>(getHeight() - 220), 320.0f, 220.0f);
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.10f));
+    g.fillEllipse(-160.0f, -110.0f, 420.0f, 260.0f);
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.09f));
+    g.fillEllipse(static_cast<float>(getWidth() - 260), -40.0f, 360.0f, 220.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.025f));
+    g.drawHorizontalLine(82, 20.0f, static_cast<float>(getWidth() - 20));
+    g.drawHorizontalLine(static_cast<int>(getHeight() * 0.66f), 20.0f, static_cast<float>(getWidth() - 20));
 }
 
 void MainComponent::resized()
 {
-    auto area = getLocalBounds().reduced(14, 12);
-    const int sectionGap = 10;
-    const int deckAreaH = static_cast<int>(area.getHeight() * 0.64f);
+    auto area = getLocalBounds().reduced(16, 14);
+    const int sectionGap = 14;
+    const int deckAreaH = static_cast<int>(area.getHeight() * 0.73f);
     auto deckArea = area.removeFromTop(deckAreaH);
 
-    const int mixerW = juce::jlimit(200, 280, deckArea.getWidth() / 5);
+    const int mixerW = juce::jlimit(196, 232, deckArea.getWidth() / 5);
     const int deckW  = (deckArea.getWidth() - mixerW - sectionGap * 2) / 2;
 
     if (deckGUI1)   deckGUI1->setBounds(deckArea.removeFromLeft(deckW));

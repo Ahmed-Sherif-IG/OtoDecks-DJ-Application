@@ -5,20 +5,21 @@
 class CustomLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    static constexpr juce::uint32 panelColourValue      = 0xFF161A22;
-    static constexpr juce::uint32 panelAltColourValue   = 0xFF1C212B;
-    static constexpr juce::uint32 outlineColourValue    = 0xFF31394A;
-    static constexpr juce::uint32 textColourValue       = 0xFFF3F6FB;
-    static constexpr juce::uint32 mutedTextColourValue  = 0xFF93A0B8;
-    static constexpr juce::uint32 accentBlueValue       = 0xFF3A7BD5;
-    static constexpr juce::uint32 accentOrangeValue     = 0xFFF5A623;
-    static constexpr juce::uint32 accentGreenValue      = 0xFF2BD97F;
+    static constexpr juce::uint32 panelColourValue      = 0xFF0B1018;
+    static constexpr juce::uint32 panelAltColourValue   = 0xFF151D29;
+    static constexpr juce::uint32 panelRaisedColourValue= 0xFF1B2636;
+    static constexpr juce::uint32 outlineColourValue    = 0xFF2D3C51;
+    static constexpr juce::uint32 textColourValue       = 0xFFF4F7FC;
+    static constexpr juce::uint32 mutedTextColourValue  = 0xFF8EA0B9;
+    static constexpr juce::uint32 accentBlueValue       = 0xFF49A3FF;
+    static constexpr juce::uint32 accentOrangeValue     = 0xFFFFB53D;
+    static constexpr juce::uint32 accentGreenValue      = 0xFF31E38A;
     static constexpr juce::uint32 accentRedValue        = 0xFFFF5D73;
 
     CustomLookAndFeel()
     {
         setColour(juce::ResizableWindow::backgroundColourId, colour(panelColourValue));
-        setColour(juce::TextButton::buttonColourId, colour(panelAltColourValue));
+        setColour(juce::TextButton::buttonColourId, colour(panelRaisedColourValue));
         setColour(juce::TextButton::buttonOnColourId, colour(accentBlueValue));
         setColour(juce::TextButton::textColourOffId, colour(textColourValue));
         setColour(juce::TextButton::textColourOnId, colour(textColourValue));
@@ -30,7 +31,7 @@ public:
         setColour(juce::ListBox::backgroundColourId, colour(panelColourValue));
         setColour(juce::TableHeaderComponent::backgroundColourId, colour(panelAltColourValue));
         setColour(juce::TableHeaderComponent::textColourId, colour(textColourValue));
-        setColour(juce::TextEditor::backgroundColourId, colour(panelAltColourValue));
+        setColour(juce::TextEditor::backgroundColourId, colour(panelRaisedColourValue));
         setColour(juce::TextEditor::textColourId, colour(textColourValue));
         setColour(juce::TextEditor::outlineColourId, colour(outlineColourValue));
         setColour(juce::CaretComponent::caretColourId, colour(textColourValue));
@@ -64,12 +65,18 @@ public:
         else if (isMouseOverButton)
             baseColour = baseColour.brighter(0.05f);
 
-        juce::ColourGradient fill(baseColour.brighter(0.15f), bounds.getTopLeft(),
-                                  baseColour.darker(0.18f), bounds.getBottomRight(), false);
+        juce::DropShadow shadow(juce::Colours::black.withAlpha(0.35f), 8, { 0, 3 });
+        shadow.drawForRectangle(g, bounds.toNearestInt());
+
+        juce::ColourGradient fill(baseColour.brighter(0.10f), bounds.getTopLeft(),
+                                  baseColour.darker(0.12f), bounds.getBottomLeft(), false);
         g.setGradientFill(fill);
         g.fillRoundedRectangle(bounds, 9.0f);
 
-        g.setColour(baseColour.brighter(button.hasKeyboardFocus(true) ? 0.35f : 0.18f).withAlpha(0.9f));
+        g.setColour(juce::Colours::white.withAlpha(button.isEnabled() ? 0.025f : 0.015f));
+        g.drawRoundedRectangle(bounds.reduced(0.8f), 8.0f, 1.0f);
+
+        g.setColour(baseColour.brighter(button.hasKeyboardFocus(true) ? 0.28f : 0.16f).withAlpha(0.92f));
         g.drawRoundedRectangle(bounds, 9.0f, button.getToggleState() ? 2.0f : 1.0f);
     }
 
@@ -83,13 +90,17 @@ public:
         if (style == juce::Slider::LinearHorizontal)
         {
             auto track = bounds.withHeight(6.0f).withCentre(bounds.getCentre());
-            g.setColour(colour(outlineColourValue));
+            g.setColour(colour(outlineColourValue).darker(0.2f));
             g.fillRoundedRectangle(track, 3.0f);
 
             auto active = track.withWidth(juce::jmax(8.0f, sliderPos - track.getX()));
-            g.setColour(slider.findColour(juce::Slider::trackColourId).brighter(0.15f));
+            juce::ColourGradient activeFill(slider.findColour(juce::Slider::trackColourId).brighter(0.2f), active.getTopLeft(),
+                                            slider.findColour(juce::Slider::trackColourId).darker(0.15f), active.getTopRight(), false);
+            g.setGradientFill(activeFill);
             g.fillRoundedRectangle(active, 3.0f);
 
+            g.setColour(juce::Colours::black.withAlpha(0.35f));
+            g.fillEllipse(sliderPos - 8.0f, track.getCentreY() - 7.0f, 16.0f, 16.0f);
             g.setColour(colour(textColourValue));
             g.fillEllipse(sliderPos - 8.0f, track.getCentreY() - 8.0f, 16.0f, 16.0f);
             return;
@@ -98,15 +109,19 @@ public:
         if (style == juce::Slider::LinearVertical)
         {
             auto track = bounds.withWidth(8.0f).withCentre(bounds.getCentre());
-            g.setColour(colour(outlineColourValue));
+            g.setColour(colour(outlineColourValue).darker(0.2f));
             g.fillRoundedRectangle(track, 4.0f);
 
             auto active = juce::Rectangle<float>(track.getX(), sliderPos,
                                                  track.getWidth(), track.getBottom() - sliderPos);
             juce::Colour activeColour = slider.findColour(juce::Slider::trackColourId);
-            g.setColour(activeColour.withAlpha(0.95f));
+            juce::ColourGradient activeFill(activeColour.brighter(0.18f), active.getTopLeft(),
+                                            activeColour.darker(0.18f), active.getBottomLeft(), false);
+            g.setGradientFill(activeFill);
             g.fillRoundedRectangle(active, 4.0f);
 
+            g.setColour(juce::Colours::black.withAlpha(0.35f));
+            g.fillEllipse(track.getCentreX() - 10.0f, sliderPos - 9.0f, 20.0f, 20.0f);
             g.setColour(colour(textColourValue));
             g.fillEllipse(track.getCentreX() - 10.0f, sliderPos - 10.0f, 20.0f, 20.0f);
             return;
@@ -124,6 +139,73 @@ public:
         g.setFont(label.getFont());
         g.drawFittedText(label.getText(), bounds.reduced(1, 0),
                          label.getJustificationType(), 1, 0.95f);
+    }
+
+    void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
+                          float sliderPosProportional, float rotaryStartAngle,
+                          float rotaryEndAngle, juce::Slider& slider) override
+    {
+        const float radius = juce::jmin(width / 2.0f, height / 2.0f) - 4.0f;
+        const float centreX = static_cast<float>(x) + width  * 0.5f;
+        const float centreY = static_cast<float>(y) + height * 0.5f;
+        const float angle   = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
+        const bool  enabled = slider.isEnabled();
+
+        // Track arc (background)
+        juce::Path track;
+        track.addCentredArc(centreX, centreY, radius, radius, 0.0f,
+                            rotaryStartAngle, rotaryEndAngle, true);
+        g.setColour(colour(outlineColourValue).darker(0.15f));
+        g.strokePath(track, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved,
+                                                  juce::PathStrokeType::rounded));
+
+        // Filled arc (value)
+        const float zeroAngle = rotaryStartAngle + (rotaryEndAngle - rotaryStartAngle) * 0.5f;
+        const float arcStart  = juce::jmin(angle, zeroAngle);
+        const float arcEnd    = juce::jmax(angle, zeroAngle);
+        if (arcEnd > arcStart + 0.01f)
+        {
+            juce::Path filled;
+            filled.addCentredArc(centreX, centreY, radius, radius, 0.0f,
+                                 arcStart, arcEnd, true);
+            auto trackColour = slider.findColour(juce::Slider::trackColourId);
+            if (!enabled) trackColour = trackColour.withAlpha(0.4f);
+            g.setColour(trackColour);
+            g.strokePath(filled, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved,
+                                                       juce::PathStrokeType::rounded));
+        }
+
+        // Knob body
+        const float knobRadius = radius * 0.62f;
+        juce::ColourGradient knobFill(colour(panelRaisedColourValue).brighter(0.18f),
+                                      centreX - knobRadius * 0.4f, centreY - knobRadius * 0.4f,
+                                      colour(panelColourValue).darker(0.12f),
+                                      centreX + knobRadius * 0.4f, centreY + knobRadius * 0.4f,
+                                      true);
+        g.setGradientFill(knobFill);
+        g.fillEllipse(centreX - knobRadius, centreY - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f);
+
+        // Knob ring
+        g.setColour(colour(outlineColourValue).brighter(0.1f));
+        g.drawEllipse(centreX - knobRadius, centreY - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f, 1.2f);
+
+        // Pointer line
+        const float pointerLen  = knobRadius * 0.60f;
+        const float pointerTip  = knobRadius * 0.22f;
+        const float px = centreX + std::sin(angle) * pointerLen;
+        const float py = centreY - std::cos(angle) * pointerLen;
+        const float px2 = centreX + std::sin(angle) * pointerTip;
+        const float py2 = centreY - std::cos(angle) * pointerTip;
+        g.setColour(enabled ? colour(textColourValue) : colour(mutedTextColourValue));
+        g.drawLine(px2, py2, px, py, 2.2f);
+
+        // Mouse-over glow
+        if (slider.isMouseOverOrDragging() && enabled)
+        {
+            g.setColour(slider.findColour(juce::Slider::trackColourId).withAlpha(0.22f));
+            g.drawEllipse(centreX - radius - 2, centreY - radius - 2,
+                          (radius + 2) * 2.0f, (radius + 2) * 2.0f, 2.0f);
+        }
     }
 
     void drawTableHeaderBackground(juce::Graphics& g, juce::TableHeaderComponent& header) override

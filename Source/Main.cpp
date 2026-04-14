@@ -45,6 +45,7 @@ public:
             setFullScreen(true);
            #else
             setResizable(true, true);
+            setResizeLimits(1200, 700, 3840, 2160);
             centreWithSize(getWidth(), getHeight());
            #endif
 
