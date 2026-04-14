@@ -60,7 +60,8 @@ void DJAudioPlayer::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         auto* data = buf->getWritePointer(ch, startS);
 
         // EQ
-        lowFilters_[ch].processSamples(data, nSamp);
+        lowCutFilters_[ch].processSamples(data, nSamp);
+        lowBoostFilters_[ch].processSamples(data, nSamp);
         midFilters_[ch].processSamples(data, nSamp);
         highFilters_[ch].processSamples(data, nSamp);
 
@@ -68,9 +69,9 @@ void DJAudioPlayer::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
         if (lpfEnabled_)
             lpFilters_[ch].processSamples(data, nSamp);
 
-        // HP filter (M6)
+        // High cut / low-pass filter
         if (hpfEnabled_)
-            hpFilters_[ch].processSamples(data, nSamp);
+            highCutFilters_[ch].processSamples(data, nSamp);
 
         // Delay (M6)
         if (delayEnabled_ && !delayBuffer_[ch].empty())
@@ -99,7 +100,12 @@ void DJAudioPlayer::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
     // For mono, delayWritePos_ is already advanced in the channel loop above.
 
     // RMS metering
-    rmsLevel_.store(buf->getRMSLevel(0, startS, nSamp));
+    float rms = 0.0f;
+    for (int ch = 0; ch < numCh; ++ch)
+        rms = juce::jmax(rms, buf->getRMSLevel(ch, startS, nSamp));
+
+    const float boostedMeter = juce::jlimit(0.0f, 1.0f, rms * 2.4f);
+    rmsLevel_.store(boostedMeter);
 }
 
 void DJAudioPlayer::releaseResources()
@@ -149,7 +155,7 @@ void DJAudioPlayer::setTrimGain(double trim)
 
 void DJAudioPlayer::setCrossfaderGain(double gain)
 {
-    crossfaderGain_ = juce::jlimit(0.0, 1.0, gain);
+    crossfaderGain_ = juce::jlimit(0.0, 2.0, gain);
     applyEffectiveGain();
 }
 
@@ -233,15 +239,22 @@ void DJAudioPlayer::setEQHigh(double dB) { eqHighDb_ = juce::jlimit(-12.0,12.0,d
 void DJAudioPlayer::updateEQCoefficients()
 {
     if (sampleRate_ <= 0.0) return;
-    auto lc = juce::IIRCoefficients::makeLowShelf (sampleRate_,  300.0, 0.71f,
-                  static_cast<float>(dbToLinear(eqLowDb_)));
-    auto mc = juce::IIRCoefficients::makePeakFilter(sampleRate_, 1000.0, 0.71f,
-                  static_cast<float>(dbToLinear(eqMidDb_)));
-    auto hc = juce::IIRCoefficients::makeHighShelf(sampleRate_,  5000.0, 0.71f,
-                  static_cast<float>(dbToLinear(eqHighDb_)));
+    const auto lowGain  = static_cast<float>(dbToLinear(eqLowDb_));
+    const auto midGain  = static_cast<float>(dbToLinear(eqMidDb_ * 1.15));
+    const auto highGain = static_cast<float>(dbToLinear(eqHighDb_));
+
+    auto lowCut  = juce::IIRCoefficients::makeLowShelf (sampleRate_, 180.0, 0.75f,
+                    static_cast<float>(dbToLinear(eqLowDb_ * 1.6)));
+    auto lowBody = juce::IIRCoefficients::makePeakFilter(sampleRate_, 105.0, 0.95f,
+                    lowGain);
+    auto mc = juce::IIRCoefficients::makePeakFilter(sampleRate_, 950.0, 0.8f,
+                    midGain);
+    auto hc = juce::IIRCoefficients::makeHighShelf(sampleRate_, 4200.0, 0.75f,
+                    highGain);
     for (int ch = 0; ch < 2; ++ch)
     {
-        lowFilters_[ch].setCoefficients(lc);
+        lowCutFilters_[ch].setCoefficients(lowCut);
+        lowBoostFilters_[ch].setCoefficients(lowBody);
         midFilters_[ch].setCoefficients(mc);
         highFilters_[ch].setCoefficients(hc);
     }
@@ -258,10 +271,12 @@ void DJAudioPlayer::updateFilterCoefficients()
     if (sampleRate_ <= 0.0) return;
     auto lp = juce::IIRCoefficients::makeLowPass (sampleRate_, 800.0);
     auto hp = juce::IIRCoefficients::makeHighPass(sampleRate_, 300.0);
+    auto highCut = juce::IIRCoefficients::makeLowPass(sampleRate_, 1800.0);
     for (int ch = 0; ch < 2; ++ch)
     {
         lpFilters_[ch].setCoefficients(lp);
         hpFilters_[ch].setCoefficients(hp);
+        highCutFilters_[ch].setCoefficients(highCut);
     }
 }
 

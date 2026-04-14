@@ -45,6 +45,9 @@ public:
 private:
     static juce::String formatTime(double seconds);
     void  recordTap();
+    void resetVolumeToDefault();
+    void resetSpeedToDefault();
+    juce::Colour getDeckGlowColour() const;
 
     juce::AudioFormatManager& formatManager_;
     juce::FileChooser fChooser{ "Select a file..." };
@@ -75,6 +78,8 @@ private:
     juce::Slider volSlider;
     juce::Slider speedSlider;
     juce::Slider posSlider;
+    juce::TextButton resetVolumeButton{ "VOL RESET" };
+    juce::TextButton resetSpeedButton{ "SPD RESET" };
 
     // Labels
     juce::Label volLabel, speedLabel, posLabel;

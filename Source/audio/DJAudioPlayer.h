@@ -104,7 +104,8 @@ private:
     double sampleRate_ = 44100.0;
     std::atomic<bool> eqDirty_{ false };
 
-    juce::IIRFilter lowFilters_[2];
+    juce::IIRFilter lowCutFilters_[2];
+    juce::IIRFilter lowBoostFilters_[2];
     juce::IIRFilter midFilters_[2];
     juce::IIRFilter highFilters_[2];
 
@@ -114,6 +115,7 @@ private:
     std::atomic<bool> filterDirty_{ false };
     juce::IIRFilter lpFilters_[2];
     juce::IIRFilter hpFilters_[2];
+    juce::IIRFilter highCutFilters_[2];
 
     // M6: delay
     bool   delayEnabled_   = false;

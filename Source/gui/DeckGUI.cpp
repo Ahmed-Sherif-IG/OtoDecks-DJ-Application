@@ -14,6 +14,7 @@ static void styleDeckButton(juce::TextButton& button, juce::Colour colour)
     button.setColour(juce::TextButton::buttonColourId, colour);
     button.setColour(juce::TextButton::buttonOnColourId, colour.brighter(0.15f));
     button.setColour(juce::TextButton::textColourOffId, CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
+    button.setColour(juce::TextButton::textColourOnId, CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
     button.setClickingTogglesState(false);
 }
 
@@ -37,6 +38,7 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
     stateLabel.setText("READY", juce::dontSendNotification);
     stateLabel.setFont(juce::Font(juce::FontOptions(10.5f).withStyle("Bold")));
     stateLabel.setJustificationType(juce::Justification::centred);
+    stateLabel.setColour(juce::Label::backgroundColourId, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
     addAndMakeVisible(stateLabel);
 
     timeLabel.setText("0:00 / 0:00", juce::dontSendNotification);
@@ -51,23 +53,39 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
     bpmLabel.setColour(juce::Label::textColourId, colour.brighter(0.2f));
     addAndMakeVisible(bpmLabel);
 
+    playButton.setButtonText("PLAY");
+    stopButton.setButtonText("PAUSE");
+    loadButton.setButtonText("LOAD TRACK");
+    syncButton.setButtonText("BEAT SYNC");
+    setCueButton.setButtonText("SET CUE");
+    goCueButton.setButtonText("JUMP TO CUE");
+    loopInButton.setButtonText("LOOP START");
+    loopOutButton.setButtonText("LOOP END");
+    clearLoopButton.setButtonText("CLEAR LOOP");
+    tapButton.setButtonText("TAP BPM");
+    lpfButton.setButtonText("LOW CUT");
+    hpfButton.setButtonText("HIGH CUT");
+
     styleDeckButton(playButton, colour.brighter(0.1f));
-    styleDeckButton(stopButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.12f));
-    styleDeckButton(loadButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.05f));
+    styleDeckButton(stopButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+    styleDeckButton(loadButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).brighter(0.05f));
     styleDeckButton(syncButton, colour.withAlpha(0.85f));
     styleDeckButton(loopInButton, colour.darker(0.18f));
     styleDeckButton(loopOutButton, colour.darker(0.10f));
-    styleDeckButton(clearLoopButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
-    styleDeckButton(setCueButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
+    styleDeckButton(clearLoopButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+    styleDeckButton(setCueButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
     styleDeckButton(goCueButton, colour.withAlpha(0.75f));
     styleDeckButton(tapButton, colour.withAlpha(0.82f));
-    styleDeckButton(lpfButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
-    styleDeckButton(hpfButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
+    styleDeckButton(lpfButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+    styleDeckButton(hpfButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+    styleDeckButton(resetVolumeButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).darker(0.05f));
+    styleDeckButton(resetSpeedButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).darker(0.05f));
 
     for (auto* b : { &playButton, &stopButton, &loadButton, &syncButton,
                      &loopInButton, &loopOutButton, &clearLoopButton,
                      &setCueButton, &goCueButton,
-                     &lpfButton, &hpfButton })
+                     &lpfButton, &hpfButton,
+                     &resetVolumeButton, &resetSpeedButton })
     {
         b->addListener(this);
         addAndMakeVisible(b);
@@ -91,9 +109,9 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
         addAndMakeVisible(s);
     }
 
-    volLabel.setText("GAIN",   juce::dontSendNotification);
-    speedLabel.setText("SPEED", juce::dontSendNotification);
-    posLabel.setText("SEEK",   juce::dontSendNotification);
+    volLabel.setText("VOLUME",   juce::dontSendNotification);
+    speedLabel.setText("SPEED",   juce::dontSendNotification);
+    posLabel.setText("POSITION", juce::dontSendNotification);
 
     for (auto* l : { &volLabel, &speedLabel, &posLabel })
     {
@@ -140,7 +158,8 @@ DeckGUI::~DeckGUI()
     for (auto* b : { &playButton, &stopButton, &loadButton, &syncButton,
                      &loopInButton, &loopOutButton, &clearLoopButton,
                      &setCueButton, &goCueButton,
-                     &lpfButton, &hpfButton, &tapButton })
+                     &lpfButton, &hpfButton, &tapButton,
+                     &resetVolumeButton, &resetSpeedButton })
         b->removeListener(this);
 
     for (auto* s : { &volSlider, &speedSlider, &posSlider })
@@ -151,43 +170,59 @@ DeckGUI::~DeckGUI()
 void DeckGUI::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat().reduced(1.0f);
-    juce::ColourGradient background(deckColour_.withAlpha(0.18f), bounds.getTopLeft(),
+
+    juce::DropShadow shadow(juce::Colours::black.withAlpha(0.45f), 18, { 0, 8 });
+    shadow.drawForRectangle(g, bounds.toNearestInt());
+
+    juce::ColourGradient background(deckColour_.withAlpha(0.14f), bounds.getTopLeft(),
                                     CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue), bounds.getBottomLeft(), false);
     g.setGradientFill(background);
-    g.fillRoundedRectangle(bounds, 18.0f);
+    g.fillRoundedRectangle(bounds, 20.0f);
+
+    auto inner = bounds.reduced(1.5f);
+    juce::ColourGradient surface(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.10f), inner.getTopLeft(),
+                                 CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).darker(0.04f), inner.getBottomLeft(), false);
+    g.setGradientFill(surface);
+    g.fillRoundedRectangle(inner, 18.0f);
+
+    auto glow = inner.reduced(6.0f);
+    g.setColour(getDeckGlowColour());
+    g.drawRoundedRectangle(glow, 16.0f, 1.4f);
 
     g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
-    g.drawRoundedRectangle(bounds, 18.0f, 1.2f);
+    g.drawRoundedRectangle(inner, 18.0f, 1.1f);
 
-    auto accent = bounds.removeFromTop(6.0f).reduced(14.0f, 0.0f);
-    g.setColour(deckColour_.withAlpha(0.95f));
-    g.fillRoundedRectangle(accent, 3.0f);
+    auto accent = inner.removeFromTop(5.0f).reduced(16.0f, 0.0f);
+    juce::ColourGradient accentFill(deckColour_.brighter(0.35f), accent.getTopLeft(),
+                                    deckColour_.darker(0.1f), accent.getTopRight(), false);
+    g.setGradientFill(accentFill);
+    g.fillRoundedRectangle(accent, 2.5f);
 
-    juce::ColourGradient gloss(juce::Colours::white.withAlpha(0.06f), getLocalBounds().toFloat().getTopLeft(),
-                               juce::Colours::transparentBlack, getLocalBounds().toFloat().getCentre(), false);
+    juce::ColourGradient gloss(juce::Colours::white.withAlpha(0.075f), bounds.getTopLeft(),
+                               juce::Colours::transparentBlack, bounds.getCentre(), false);
     g.setGradientFill(gloss);
-    g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 18.0f);
+    g.fillRoundedRectangle(bounds, 20.0f);
 }
 
 void DeckGUI::resized()
 {
-    auto area = getLocalBounds().reduced(12);
-    const int gap = 6;
-    const int rowH = 32;
-    const int labelW = 50;
+    auto area = getLocalBounds().reduced(14);
+    const int gap = 10;
+    const int labelW = 74;
 
-    auto titleRow = area.removeFromTop(34);
-    auto statePill = titleRow.removeFromLeft(84);
+    auto titleRow = area.removeFromTop(32);
+    auto statePill = titleRow.removeFromLeft(64);
     stateLabel.setBounds(statePill.reduced(0, 4));
-    titleRow.removeFromLeft(10);
-    deckTitle.setBounds(titleRow.removeFromLeft(static_cast<int>(titleRow.getWidth() * 0.52f)));
-    bpmLabel.setBounds(titleRow.removeFromLeft(100));
-    timeLabel.setBounds(titleRow);
+    titleRow.removeFromLeft(8);
+    auto rightInfo = titleRow.removeFromRight(148);
+    deckTitle.setBounds(titleRow);
+    bpmLabel.setBounds(rightInfo.removeFromLeft(72));
+    timeLabel.setBounds(rightInfo);
 
     area.removeFromTop(gap);
 
-    auto transportRow = area.removeFromTop(rowH);
-    const int transportGap = 6;
+    auto transportRow = area.removeFromTop(34);
+    const int transportGap = 8;
     const int transportButtonWidth = (transportRow.getWidth() - transportGap * 3) / 4;
     playButton.setBounds(transportRow.removeFromLeft(transportButtonWidth)); transportRow.removeFromLeft(transportGap);
     stopButton.setBounds(transportRow.removeFromLeft(transportButtonWidth)); transportRow.removeFromLeft(transportGap);
@@ -196,45 +231,58 @@ void DeckGUI::resized()
 
     area.removeFromTop(gap);
 
-    auto sliderRow = [&](juce::Label& label, juce::Slider& slider)
+    auto controlsRow = area.removeFromTop(118);
+    const int sliderRowH = 28;
+    const int sliderGap = 10;
+
+    auto layoutSliderRow = [&](juce::Label& label, juce::Slider& slider, juce::TextButton* resetButton)
     {
-        auto row = area.removeFromTop(rowH);
+        auto row = controlsRow.removeFromTop(sliderRowH);
         label.setBounds(row.removeFromLeft(labelW));
+        if (resetButton != nullptr)
+        {
+            auto resetArea = row.removeFromRight(86);
+            resetButton->setBounds(resetArea.reduced(0, 2));
+            row.removeFromRight(8);
+        }
         slider.setBounds(row.reduced(4, 4));
-        area.removeFromTop(gap - 1);
+        controlsRow.removeFromTop(sliderGap);
     };
 
-    sliderRow(volLabel, volSlider);
-    sliderRow(speedLabel, speedSlider);
-    sliderRow(posLabel, posSlider);
+    layoutSliderRow(volLabel, volSlider, &resetVolumeButton);
+    layoutSliderRow(speedLabel, speedSlider, &resetSpeedButton);
+    layoutSliderRow(posLabel, posSlider, nullptr);
 
-    const int lowerSectionReserved = rowH * 3 + gap * 3;
-    const int waveformHeight = juce::jmax(130, area.getHeight() - lowerSectionReserved);
+    area.removeFromTop(gap);
+
+    const int bottomControlHeight = 102;
+    const int waveformHeight = juce::jmax(150, area.getHeight() - bottomControlHeight - gap);
     waveformDisplay.setBounds(area.removeFromTop(waveformHeight));
 
     area.removeFromTop(gap);
 
-    auto cueRow = area.removeFromTop(rowH);
-    const int buttonGap = 6;
-    const int cueButtonW = (cueRow.getWidth() - buttonGap * 2) / 3;
-    setCueButton.setBounds(cueRow.removeFromLeft(cueButtonW)); cueRow.removeFromLeft(buttonGap);
-    goCueButton.setBounds(cueRow.removeFromLeft(cueButtonW));  cueRow.removeFromLeft(buttonGap);
-    tapButton.setBounds(cueRow);
+    auto bottomControls = area.removeFromTop(bottomControlHeight).reduced(0, 2);
+    auto topActionRow = bottomControls.removeFromTop(28);
+    const int buttonGap = 8;
+    const int actionButtonW = (topActionRow.getWidth() - buttonGap * 2) / 3;
+    setCueButton.setBounds(topActionRow.removeFromLeft(actionButtonW)); topActionRow.removeFromLeft(buttonGap);
+    goCueButton.setBounds(topActionRow.removeFromLeft(actionButtonW));  topActionRow.removeFromLeft(buttonGap);
+    tapButton.setBounds(topActionRow);
 
-    area.removeFromTop(gap);
+    bottomControls.removeFromTop(8);
 
-    auto loopRow = area.removeFromTop(rowH);
-    const int loopButtonW = (loopRow.getWidth() - buttonGap * 2) / 3;
-    loopInButton.setBounds(loopRow.removeFromLeft(loopButtonW)); loopRow.removeFromLeft(buttonGap);
-    loopOutButton.setBounds(loopRow.removeFromLeft(loopButtonW)); loopRow.removeFromLeft(buttonGap);
-    clearLoopButton.setBounds(loopRow);
+    auto secondActionRow = bottomControls.removeFromTop(28);
+    const int secondButtonW = (secondActionRow.getWidth() - buttonGap * 2) / 3;
+    loopInButton.setBounds(secondActionRow.removeFromLeft(secondButtonW)); secondActionRow.removeFromLeft(buttonGap);
+    loopOutButton.setBounds(secondActionRow.removeFromLeft(secondButtonW)); secondActionRow.removeFromLeft(buttonGap);
+    clearLoopButton.setBounds(secondActionRow);
 
-    area.removeFromTop(gap);
+    bottomControls.removeFromTop(10);
 
-    auto fxRow = area.removeFromTop(rowH);
-    const int fxButtonW = (fxRow.getWidth() - buttonGap) / 2;
-    lpfButton.setBounds(fxRow.removeFromLeft(fxButtonW)); fxRow.removeFromLeft(buttonGap);
-    hpfButton.setBounds(fxRow.removeFromLeft(fxButtonW));
+    auto filterRow = bottomControls.removeFromTop(28);
+    const int filterButtonW = (filterRow.getWidth() - buttonGap) / 2;
+    lpfButton.setBounds(filterRow.removeFromLeft(filterButtonW)); filterRow.removeFromLeft(buttonGap);
+    hpfButton.setBounds(filterRow.removeFromLeft(filterButtonW));
 }
 
 //==============================================================================
@@ -280,6 +328,8 @@ void DeckGUI::buttonClicked(juce::Button* b)
     else if (b == &setCueButton)    player.setCuePoint();
     else if (b == &goCueButton)     player.jumpToCue();
     else if (b == &tapButton)       recordTap();
+    else if (b == &resetVolumeButton) resetVolumeToDefault();
+    else if (b == &resetSpeedButton)  resetSpeedToDefault();
     else if (b == &lpfButton)       player.setLowPassEnabled(!player.isLowPassEnabled());
     else if (b == &hpfButton)       player.setHighPassEnabled(!player.isHighPassEnabled());
 }
@@ -347,8 +397,10 @@ void DeckGUI::timerCallback()
 
     stateLabel.setText(stateText, juce::dontSendNotification);
     stateLabel.setColour(juce::Label::textColourId, stateColour);
+    stateLabel.setColour(juce::Label::backgroundColourId,
+                         CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).interpolatedWith(stateColour.withAlpha(0.18f), 0.35f));
 
-    playButton.setButtonText(state.isPlaying ? "Playing" : "Play");
+    playButton.setButtonText(state.isPlaying ? "PLAYING" : "PLAY");
     playButton.setToggleState(state.isPlaying, juce::dontSendNotification);
     playButton.setColour(juce::TextButton::buttonColourId,
                          state.isPlaying ? deckColour_.brighter(0.1f) : deckColour_.withAlpha(0.9f));
@@ -363,6 +415,19 @@ void DeckGUI::timerCallback()
     hpfButton.setColour(juce::TextButton::buttonColourId,
                         player.isHighPassEnabled() ? deckColour_.withAlpha(0.85f)
                                                    : CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
+}
+
+juce::Colour DeckGUI::getDeckGlowColour() const
+{
+    const auto state = player.getState();
+    auto glow = deckColour_.withAlpha(state.isPlaying ? 0.55f : 0.22f);
+
+    if (!state.isLoaded)
+        glow = CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.45f);
+    else if (state.loopActive)
+        glow = glow.brighter(0.22f);
+
+    return glow;
 }
 
 //==============================================================================
@@ -391,6 +456,16 @@ void DeckGUI::setNowPlaying(const juce::String& info)
 float DeckGUI::getSpeed() const
 {
     return static_cast<float>(speedSlider.getValue());
+}
+
+void DeckGUI::resetVolumeToDefault()
+{
+    volSlider.setValue(0.5, juce::sendNotificationSync);
+}
+
+void DeckGUI::resetSpeedToDefault()
+{
+    speedSlider.setValue(1.0, juce::sendNotificationSync);
 }
 
 void DeckGUI::recordTap()
