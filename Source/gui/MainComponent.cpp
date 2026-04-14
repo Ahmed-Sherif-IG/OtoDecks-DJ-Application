@@ -40,6 +40,7 @@ MainComponent::MainComponent()
     {
         if (deckNumber == 1) { player1.loadURL(juce::URL{ file }); deckGUI1->loadFile(file); }
         else if (deckNumber == 2) { player2.loadURL(juce::URL{ file }); deckGUI2->loadFile(file); }
+        playlistComponent.setNowPlayingFile(file);
     };
 
     playlistComponent.onNowPlaying = [this](int deck, const juce::String& info)

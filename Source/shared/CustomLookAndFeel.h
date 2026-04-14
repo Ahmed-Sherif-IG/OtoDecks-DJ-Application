@@ -141,6 +141,73 @@ public:
                          label.getJustificationType(), 1, 0.95f);
     }
 
+    void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
+                          float sliderPosProportional, float rotaryStartAngle,
+                          float rotaryEndAngle, juce::Slider& slider) override
+    {
+        const float radius = juce::jmin(width / 2.0f, height / 2.0f) - 4.0f;
+        const float centreX = static_cast<float>(x) + width  * 0.5f;
+        const float centreY = static_cast<float>(y) + height * 0.5f;
+        const float angle   = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
+        const bool  enabled = slider.isEnabled();
+
+        // Track arc (background)
+        juce::Path track;
+        track.addCentredArc(centreX, centreY, radius, radius, 0.0f,
+                            rotaryStartAngle, rotaryEndAngle, true);
+        g.setColour(colour(outlineColourValue).darker(0.15f));
+        g.strokePath(track, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved,
+                                                  juce::PathStrokeType::rounded));
+
+        // Filled arc (value)
+        const float zeroAngle = rotaryStartAngle + (rotaryEndAngle - rotaryStartAngle) * 0.5f;
+        const float arcStart  = juce::jmin(angle, zeroAngle);
+        const float arcEnd    = juce::jmax(angle, zeroAngle);
+        if (arcEnd > arcStart + 0.01f)
+        {
+            juce::Path filled;
+            filled.addCentredArc(centreX, centreY, radius, radius, 0.0f,
+                                 arcStart, arcEnd, true);
+            auto trackColour = slider.findColour(juce::Slider::trackColourId);
+            if (!enabled) trackColour = trackColour.withAlpha(0.4f);
+            g.setColour(trackColour);
+            g.strokePath(filled, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved,
+                                                       juce::PathStrokeType::rounded));
+        }
+
+        // Knob body
+        const float knobRadius = radius * 0.62f;
+        juce::ColourGradient knobFill(colour(panelRaisedColourValue).brighter(0.18f),
+                                      centreX - knobRadius * 0.4f, centreY - knobRadius * 0.4f,
+                                      colour(panelColourValue).darker(0.12f),
+                                      centreX + knobRadius * 0.4f, centreY + knobRadius * 0.4f,
+                                      true);
+        g.setGradientFill(knobFill);
+        g.fillEllipse(centreX - knobRadius, centreY - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f);
+
+        // Knob ring
+        g.setColour(colour(outlineColourValue).brighter(0.1f));
+        g.drawEllipse(centreX - knobRadius, centreY - knobRadius, knobRadius * 2.0f, knobRadius * 2.0f, 1.2f);
+
+        // Pointer line
+        const float pointerLen  = knobRadius * 0.60f;
+        const float pointerTip  = knobRadius * 0.22f;
+        const float px = centreX + std::sin(angle) * pointerLen;
+        const float py = centreY - std::cos(angle) * pointerLen;
+        const float px2 = centreX + std::sin(angle) * pointerTip;
+        const float py2 = centreY - std::cos(angle) * pointerTip;
+        g.setColour(enabled ? colour(textColourValue) : colour(mutedTextColourValue));
+        g.drawLine(px2, py2, px, py, 2.2f);
+
+        // Mouse-over glow
+        if (slider.isMouseOverOrDragging() && enabled)
+        {
+            g.setColour(slider.findColour(juce::Slider::trackColourId).withAlpha(0.22f));
+            g.drawEllipse(centreX - radius - 2, centreY - radius - 2,
+                          (radius + 2) * 2.0f, (radius + 2) * 2.0f, 2.0f);
+        }
+    }
+
     void drawTableHeaderBackground(juce::Graphics& g, juce::TableHeaderComponent& header) override
     {
         auto area = header.getLocalBounds().toFloat();

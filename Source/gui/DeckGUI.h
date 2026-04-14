@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <array>
 #include "../audio/DJAudioPlayer.h"
 #include "WaveformDisplay.h"
 #include "../audio/BPMAnalyser.h"
@@ -63,6 +64,14 @@ private:
     juce::TextButton loopOutButton  { "Loop Out" };
     juce::TextButton clearLoopButton{ "Clr Loop" };
 
+    // Loop bar-length buttons
+    juce::TextButton loopBar1_4Button { "1/4" };
+    juce::TextButton loopBar1_2Button { "1/2" };
+    juce::TextButton loopBar1Button   { "1"   };
+    juce::TextButton loopBar2Button   { "2"   };
+    juce::TextButton loopBar4Button   { "4"   };
+    juce::TextButton loopBar8Button   { "8"   };
+
     // Cue (M2)
     juce::TextButton setCueButton{ "Set Cue" };
     juce::TextButton goCueButton { "Go Cue"  };
@@ -73,6 +82,11 @@ private:
 
     // M5: TAP BPM
     juce::TextButton tapButton { "TAP" };
+
+    // Hotcue pads (8 per deck)
+    static constexpr int kNumHotcues = 8;
+    std::array<juce::TextButton, kNumHotcues> hotcuePads;
+    void updateHotcuePadColors();
 
     // Sliders
     juce::Slider volSlider;
