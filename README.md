@@ -2,12 +2,10 @@
 
 OtoDecks is a desktop DJ application built with **JUCE** in **C++**.
 
-It is structured around a dual-deck workflow:
-- **Deck A** and **Deck B** for playback and performance controls
-- a central **Mixer Panel** for trim, EQ, crossfader, master level, and metering
-- a lower **Library / Playlist** section for loading and managing tracks
-
-The project started as an academic JUCE DJ app and is being actively pushed toward a more production-quality desktop DJ tool with clearer architecture, better UX, stronger audio controls, and a more professional UI.
+Dual-deck workflow:
+- **Deck A** and **Deck B** — full playback and performance controls
+- Central **Mixer Panel** — trim, EQ, crossfader, master level, metering
+- Lower **Library / Playlist** — track management and loading
 
 ---
 
@@ -15,427 +13,280 @@ The project started as an academic JUCE DJ app and is being actively pushed towa
 
 ### Playback / Deck Controls
 Each deck supports:
-- Play
-- Pause / Stop
-- Load Track
-- Position slider
-- Volume slider
-- Speed slider
-- BPM-aware sync fallback logic
-- Cue point set / jump
-- Loop start / loop end / clear loop
+- Play / Pause / Stop
+- Load Track (button, drag-and-drop, or library)
+- Position slider with seek
+- Volume slider with reset
+- Speed slider with reset
+- Drag-and-drop file loading
+- BPM-aware sync (matches other deck's BPM or speed)
 - Tap BPM
-- Reset volume to default
-- Reset speed to default
-- Drag-and-drop track loading
 
-### Waveform
-Each deck includes a waveform display with:
-- waveform rendering via `juce::AudioThumbnail`
-- playback position indicator
-- click / drag seek support
-- loop region overlay
-- cue marker overlay
-- beat grid overlay when BPM is available
-- per-deck colour styling
+### Cue System
+- Set cue point at current position
+- Jump to cue point
+- Cue marker rendered on waveform
+
+### Loop System
+- Manual loop in / loop out / clear loop
+- Bar-length loop buttons: **1/4, 1/2, 1, 2, 4, 8 bars** — auto-calculated from BPM
+- Loop region rendered on waveform
+
+### Hotcue Pads (8 per deck)
+- 8 numbered pad buttons per deck
+- **Left-click** unset pad → sets hotcue at current position
+- **Left-click** set pad → jumps to stored position
+- **Shift + click** → clears that pad
+- **CLR button** → clears all 8 pads at once
+- Pads auto-clear when a new track is loaded
+- Set pads light up in colour; empty pads dimmed
+
+### Waveform Display
+- Waveform rendering via `juce::AudioThumbnail`
+- Playback position indicator
+- Click / drag seek support
+- Loop region overlay
+- Cue marker overlay
+- Beat grid overlay (when BPM is available)
+- Per-deck colour styling
+- **Hover time tooltip** — shows MM:SS position under cursor
+
+### Filters
+- Low-pass filter toggle (LP button)
+- High-pass filter toggle (HP button)
+- Active filters highlighted in deck colour
 
 ### Mixer
-The mixer panel currently includes:
-- Crossfader
-- Master level
-- Deck trim controls
-- 3-band EQ per deck
-- Per-deck VU meters
-- Reset EQ A / Reset EQ B / Reset mixer controls
+- **Crossfader** with three curve modes:
+  - **LIN** — linear blend
+  - **EQP** — equal-power blend (default)
+  - **CUT** — hard cut (scratch mode)
+- Master level slider
+- Per-deck trim sliders
+- **3-band EQ per deck** (LOW / MID / HIGH) displayed as rotary knobs
+- Reset EQ A / Reset EQ B / Reset mixer buttons
+- Per-deck **VU meters** with:
+  - RMS level bar
+  - Peak-hold indicator
+  - **Clip LED** — latches red on peak ≥ 0.98, click to reset
 
-### Audio Features
-`DJAudioPlayer` currently supports:
-- file loading through JUCE readers
-- transport playback
-- resampling-based speed control
-- gain, trim, and crossfader gain stacking
-- loop handling
-- cue points
-- 3-band EQ
-- low-cut / high-cut style filter toggles
-- delay support scaffolding
+### Audio Engine (`DJAudioPlayer`)
+- File loading via JUCE readers
+- Transport playback
+- Resampling-based speed control with smooth ramping
+- Gain / trim / crossfader gain stacking
+- Loop state with `setLoopFromCurrentPosition(durationSeconds)`
+- Cue points
+- 8-slot hotcue storage per deck
+- 3-band IIR EQ (LOW 100 Hz / MID 1 kHz / HIGH 10 kHz)
+- Low-pass and high-pass filter toggles
+- Delay effect scaffold
 - RMS metering
 - BPM storage
 
 ### Library / Playlist
-The lower browser supports:
-- adding tracks from disk
-- metadata extraction (where available)
-- search filtering
-- column sorting
-- CSV persistence
-- loading tracks to Deck A or Deck B
-- delete action per row
-- now-playing text updates back to the deck header
+- Add tracks from disk (multi-select)
+- Metadata extraction (title, artist, duration, BPM)
+- Text search filter
+- Column sorting
+- **Now-playing row highlight** — green underline on currently loaded track
+- Row height 28px for readability
+- CSV persistence (`Documents/trackLibrary.csv`)
+- Load to Deck A or Deck B
+- Delete track from library
+
+### UI & Theming
+- Custom dark theme — `CustomLookAndFeel`
+- Color palette: deep near-black panels, electric cyan-blue (Deck A), vivid orange (Deck B)
+- Section panel backgrounds grouping Transport / Controls / Effects per deck
+- Rotary EQ knobs with centre-zero arc and gradient body
+- Minimum window size: **1200 × 700**
+- Ambient glow ellipses on main background per deck color
 
 ---
 
 ## Project Structure
 
-```text
+```
 Source/
 ├── audio/
-│   ├── DJAudioPlayer.h / .cpp
-│   ├── BPMAnalyser.h / .cpp
+│   ├── DJAudioPlayer.h / .cpp      — audio engine for one deck
+│   ├── BPMAnalyser.h / .cpp        — background BPM detection
 │
 ├── gui/
-│   ├── MainComponent.h / .cpp
-│   ├── DeckGUI.h / .cpp
-│   ├── WaveformDisplay.h / .cpp
-│   ├── MixerPanel.h / .cpp
-│   ├── VUMeter.h
-│   └── DeckLoadCellComponent.h
+│   ├── MainComponent.h / .cpp      — root UI, audio callback, keyboard shortcuts
+│   ├── DeckGUI.h / .cpp            — deck control surface
+│   ├── WaveformDisplay.h / .cpp    — waveform rendering and interaction
+│   ├── MixerPanel.h / .cpp         — crossfader, EQ, VU meters
+│   ├── VUMeter.h                   — level metering component
+│   └── DeckLoadCellComponent.h     — table cell for library load/delete actions
 │
 ├── library/
-│   ├── PlaylistComponent.h / .cpp
+│   └── PlaylistComponent.h / .cpp  — track browser and CSV persistence
 │
 ├── shared/
-│   ├── CustomLookAndFeel.h
-│   ├── DeckState.h
-│   └── Callbacks.h
+│   ├── CustomLookAndFeel.h         — theme colours and custom draw overrides
+│   ├── DeckState.h                 — deck state snapshot struct
+│   └── Callbacks.h                 — callback typedefs
 │
-└── Main.cpp
+└── Main.cpp                        — JUCE app entry point
 ```
 
 ---
 
 ## How The App Works
 
-### 1. Application startup
-Entry point:
-- `Source/Main.cpp`
+### 1. Startup
+`Source/Main.cpp` → `OtoDecksApplication` → creates `MainWindow` → sets `MainComponent` as content.
 
-`OtoDecksApplication` creates the main window and sets `MainComponent` as the content component.
+### 2. Main UI composition (`MainComponent`)
+Owns:
+- `DJAudioPlayer player1, player2`
+- `DeckGUI deckGUI1, deckGUI2`
+- `MixerPanel mixerPanel`
+- `PlaylistComponent playlistComponent`
+- `juce::MixerAudioSource mixerSource`
+- `CustomLookAndFeel customLook`
+- `std::atomic<float> masterGain_`
 
-### 2. Main UI composition
-Main UI root:
-- `Source/gui/MainComponent.h`
-- `Source/gui/MainComponent.cpp`
+Layout: `[DeckGUI1] [MixerPanel] [DeckGUI2]` across top 73% of window, `[PlaylistComponent]` below.
 
-`MainComponent` owns the main runtime objects:
-- two `DJAudioPlayer` instances
-- two `DeckGUI` instances
-- one `MixerPanel`
-- one `PlaylistComponent`
-- one `juce::MixerAudioSource`
-- one shared `CustomLookAndFeel`
+### 3. Audio signal flow
+```
+DJAudioPlayer (player1)  ──┐
+                            ├── MixerAudioSource ── masterGain_ ── audio output
+DJAudioPlayer (player2)  ──┘
+```
+`MainComponent::getNextAudioBlock()` calls `mixerSource`, then applies `masterGain_` to the final buffer.
 
-At a high level:
-- **DeckGUI 1** controls **player1**
-- **DeckGUI 2** controls **player2**
-- **MixerPanel** controls trim, EQ, crossfader, and master interaction across both players
-- **PlaylistComponent** loads tracks into either deck
+### 4. Deck audio engine (`DJAudioPlayer`)
+Chain per deck:
+```
+File → AudioFormatReaderSource → AudioTransportSource → ResamplingAudioSource
+     → EQ filters (IIR low/mid/high) → LP/HP filters → delay → gain → output
+```
+Gain stacking: `effectiveGain = userGain × trimGain × crossfaderGain`
 
-### 3. Audio flow
-Audio flow is centered in `MainComponent`.
+### 5. Deck UI (`DeckGUI`)
+- Timer at 20 Hz polls `player.getState()` and updates all labels, button states, waveform position
+- Hotcue pads: click routes through `buttonClicked()` → `player.setHotcue/jumpToHotcue/clearHotcue`
+- Bar-length loops: calculate `bars × (60/bpm × 4)` seconds → `player.setLoopFromCurrentPosition()`
+- BPM analysis runs on background thread via `BPMAnalyser`; result callback updates `bpmLabel` and waveform beat grid
 
-- `player1` and `player2` are added into `mixerSource`
-- `mixerSource` writes into the output buffer in `MainComponent::getNextAudioBlock(...)`
-- `masterGain_` is applied to the final output buffer after the two deck sources are mixed
+### 6. Waveform (`WaveformDisplay`)
+- `juce::AudioThumbnail` renders waveform
+- `mouseMove` → updates `hoverX_` → `paint()` draws MM:SS tooltip pill
+- `mouseDown/mouseDrag` → `seekToX()` → `onSeek` callback → `player.setPositionRelative()`
 
-### 4. Deck playback model
-Playback engine:
-- `Source/audio/DJAudioPlayer.h`
-- `Source/audio/DJAudioPlayer.cpp`
+### 7. Mixer (`MixerPanel`)
+Crossfader curves in `applyCrossfader(pos)`:
+- **Linear:** `g1 = 1-pos, g2 = pos`
+- **EqualPower:** `g1 = cos(pos × π/2), g2 = sin(pos × π/2)`
+- **Cut:** `g1 = (pos ≤ 0.5) ? 1 : 0, g2 = (pos ≥ 0.5) ? 1 : 0`
 
-Each deck player contains:
-- a `juce::AudioTransportSource`
-- a `juce::ResamplingAudioSource`
-- filter / EQ stages
-- loop state
-- cue state
-- RMS metering
-- BPM state
+EQ sliders use `Rotary` style — drawn by `CustomLookAndFeel::drawRotarySlider()`.
 
-Core responsibilities of `DJAudioPlayer`:
-- load a file
-- start / stop playback
-- set gain / trim / crossfader gain
-- change speed
-- move playback position
-- manage cue and loop state
-- update EQ and filter coefficients
-- expose current deck state via `DeckState`
+### 8. VU Meter (`VUMeter`)
+- Timer at 30 Hz reads RMS via `getLevel()`
+- Peak-hold: hold 24 frames, then decay 0.018/frame
+- Clip LED: latches `clipped_ = true` when level ≥ 0.98; `mouseDown` resets
 
-### 5. Deck UI layer
-Deck UI:
-- `Source/gui/DeckGUI.h`
-- `Source/gui/DeckGUI.cpp`
-
-Each `DeckGUI` is a control surface bound to one `DJAudioPlayer`.
-
-Responsibilities:
-- presents deck title, status, BPM, and time
-- handles transport buttons
-- handles volume / speed / position sliders
-- handles cue and loop actions
-- handles filter toggle buttons
-- shows waveform
-- reacts to playback state on a timer
-- triggers BPM analysis and updates waveform beat markers
-
-### 6. Waveform system
-Waveform component:
-- `Source/gui/WaveformDisplay.h`
-- `Source/gui/WaveformDisplay.cpp`
-
-Responsibilities:
-- render waveform thumbnail
-- render playback position marker
-- render cue marker
-- render loop region
-- render beat grid markers
-- allow seek by clicking or dragging in the waveform area
-
-### 7. Mixer system
-Mixer component:
-- `Source/gui/MixerPanel.h`
-- `Source/gui/MixerPanel.cpp`
-
-Responsibilities:
-- crossfader control
-- master output control
-- deck trim controls
-- deck EQ controls
-- reset controls for neutral/default state
-- VU meter display per deck
-
-Crossfader logic currently uses equal-power style blending and then applies a master-related scaling layer before sending gain values to both deck players.
-
-### 8. Library system
-Library / browser:
-- `Source/library/PlaylistComponent.h`
-- `Source/library/PlaylistComponent.cpp`
-
-Responsibilities:
-- maintain the track list
-- read track metadata
-- display searchable/sortable rows
-- save/load CSV library state
-- expose callbacks for loading tracks into Deck A or Deck B
-- notify decks of now-playing display text
-
-### 9. Shared types
-Shared support files:
-- `Source/shared/DeckState.h`
-- `Source/shared/Callbacks.h`
-- `Source/shared/CustomLookAndFeel.h`
-
-These provide:
-- a consistent state snapshot for deck UI updates
-- callback typedefs between components
-- centralized project styling/theme values
+### 9. Library (`PlaylistComponent`)
+- `getFilteredIndices()` applies `searchText_` filter on every render
+- `setNowPlayingFile(file)` stores file path → `paintRowBackground()` draws green underline on matching row
+- Persists to `Documents/trackLibrary.csv` on every add/delete
 
 ---
 
 ## Important Classes
 
-### `DJAudioPlayer`
-Main audio engine for one deck.
-
-Key areas:
-- playback transport
-- resampling / speed
-- cue / loop state
-- EQ / filters
-- level metering
-- BPM storage
-
-### `DeckGUI`
-Deck-facing control surface.
-
-Key areas:
-- user interaction for one deck
-- timer-driven UI refresh
-- waveform integration
-- sync / cue / loop controls
-- filter toggles and slider controls
-
-### `MixerPanel`
-Shared center mixing surface.
-
-Key areas:
-- crossfader
-- trim
-- EQ
-- master level
-- VU monitoring
-- reset/default actions
-
-### `PlaylistComponent`
-Track browser and persistence layer.
-
-Key areas:
-- track management
-- searching / sorting
-- loading to deck
-- CSV persistence
-
-### `BPMAnalyser`
-Background-thread BPM analysis helper.
-
-Key areas:
-- async analysis on a worker thread
-- result callback on message thread
+| Class | Role |
+|-------|------|
+| `DJAudioPlayer` | Audio engine — playback, EQ, filters, cues, loops, hotcues, metering |
+| `DeckGUI` | Deck UI surface — controls, hotcue pads, bar-loop buttons, waveform |
+| `WaveformDisplay` | Waveform render, seek, hover tooltip, loop/cue/beat overlays |
+| `MixerPanel` | Crossfader (3 curves), EQ rotary knobs, trim, master, VU meters |
+| `PlaylistComponent` | Library browser, search, sort, now-playing highlight, CSV persistence |
+| `BPMAnalyser` | Background BPM detection, result callback |
+| `VUMeter` | RMS bar, peak-hold, clip LED |
+| `CustomLookAndFeel` | Theme colours, button draw, linear slider draw, rotary knob draw |
 
 ---
 
-## Build Information
+## Keyboard Shortcuts
 
-### Project file
-Main JUCE project:
-- `OtoDeck.jucer`
+| Key | Action |
+|-----|--------|
+| `1` | Play/stop Deck A |
+| `2` | Play/stop Deck B |
+| `Space` | Play/stop Deck A |
+| `Q` | Set cue — Deck A |
+| `W` | Jump to cue — Deck A |
+| `O` | Set cue — Deck B |
+| `P` | Jump to cue — Deck B |
+| `S` | BPM sync Deck B to Deck A |
 
-### Visual Studio solution
-Generated build target:
-- `Builds/VisualStudio2022/OtoDeck.sln`
+---
 
-### JUCE modules
-The project uses JUCE modules referenced in `OtoDeck.jucer`.
-If source files are moved, **re-save the `.jucer` file in Projucer** to regenerate Visual Studio project paths correctly.
+## Build
 
-This matters because stale generated Visual Studio paths previously caused build errors after source-tree restructuring.
+### Requirements
+- JUCE 8.x
+- Visual Studio 2022
+- Windows x64
 
-### Typical Windows workflow
+### Steps
 1. Open `OtoDeck.jucer` in Projucer
-2. Re-save the project if build files are stale
+2. Re-save if source files have changed (regenerates VS project)
 3. Open `Builds/VisualStudio2022/OtoDeck.sln`
 4. Build `Debug | x64` or `Release | x64`
-5. Run the generated executable
 
 ---
 
 ## Runtime Usage
 
 ### Loading tracks
-You can load tracks by:
-- pressing **LOAD TRACK** on a deck
-- dragging a file onto a deck
-- using **LOAD A** or **LOAD B** from the library table
-
-### Mixing
-Use the center mixer to:
-- control trim for each deck
-- adjust LOW / MID / HIGH EQ
-- view deck levels on VU meters
-- adjust master level
-- blend decks with the crossfader
+- **LOAD TRACK** button on deck
+- Drag a file onto a deck
+- **Load A / Load B** from library table
 
 ### Performance workflow
-Typical flow:
-1. Add tracks to the library
-2. Load one track into each deck
-3. Start playback on a deck
-4. Use waveform seek, cue, loop, and speed controls
-5. Blend between decks with trim, EQ, and crossfader
-6. Monitor levels via VU meters
-
----
-
-## Keyboard Shortcuts
-Current shortcuts implemented in `MainComponent`:
-
-- `1` → play/stop Deck 1
-- `2` → play/stop Deck 2
-- `Space` → play/stop Deck 1
-- `Q` → set cue Deck 1
-- `W` → jump cue Deck 1
-- `O` → set cue Deck 2
-- `P` → jump cue Deck 2
-- `S` → sync active deck logic
+1. Add tracks to library
+2. Load one track per deck
+3. Play both decks
+4. Use hotcue pads, loop bar buttons, cue set/jump for performance
+5. Blend with crossfader (pick curve: LIN / EQP / CUT)
+6. Shape sound with 3-band EQ and LP/HP filters
+7. Monitor levels on VU meters — clip LED shows if hitting hard
 
 ---
 
 ## Persistence
 
-### Library file
-The library currently persists to:
-- `Documents/trackLibrary.csv`
+Library saves to: `Documents/trackLibrary.csv`
 
-The CSV stores track/library information so the track list can be restored across runs.
+Format: `Title, Artist, Duration (seconds), BPM, File Path`
 
----
-
-## Current Design / Architecture Notes
-
-This project is mid-transition from a coursework-style prototype to a more production-oriented DJ desktop application.
-
-Important current realities:
-- the app works as a dual-deck DJ tool already
-- the UI is actively being redesigned
-- layout and wording are being improved through runtime screenshot iteration
-- the project structure has already been reorganized into `audio`, `gui`, `library`, and `shared`
-- generated Visual Studio files may need regeneration after structural moves
+Loaded automatically on startup. Saved on every track add or delete.
 
 ---
 
-## Known Limitations / Active Work
+## File Reference
 
-This project is still under active overhaul.
-
-Current active areas of improvement include:
-- making the mixer layout more professional and readable
-- shrinking the library footprint so the performance surface dominates
-- refining deck hierarchy and visual identity
-- validating filter behavior against UI labels
-- improving polish and responsiveness across different window sizes
-
-Potential technical caveats while iterating:
-- some UI changes may be ahead of documentation if the project is in active design work
-- generated Visual Studio project files can drift if `.jucer` is not re-saved after moves
-- some features are present in scaffold form and still need deeper polish or validation
-
----
-
-## File Reference Summary
-
-### Entry / App
-- `Source/Main.cpp`
-
-### Audio
-- `Source/audio/DJAudioPlayer.h`
-- `Source/audio/DJAudioPlayer.cpp`
-- `Source/audio/BPMAnalyser.h`
-- `Source/audio/BPMAnalyser.cpp`
-
-### GUI
-- `Source/gui/MainComponent.h`
-- `Source/gui/MainComponent.cpp`
-- `Source/gui/DeckGUI.h`
-- `Source/gui/DeckGUI.cpp`
-- `Source/gui/WaveformDisplay.h`
-- `Source/gui/WaveformDisplay.cpp`
-- `Source/gui/MixerPanel.h`
-- `Source/gui/MixerPanel.cpp`
-- `Source/gui/VUMeter.h`
-- `Source/gui/DeckLoadCellComponent.h`
-
-### Library
-- `Source/library/PlaylistComponent.h`
-- `Source/library/PlaylistComponent.cpp`
-
-### Shared
-- `Source/shared/DeckState.h`
-- `Source/shared/Callbacks.h`
-- `Source/shared/CustomLookAndFeel.h`
-
-### Project / Build
-- `OtoDeck.jucer`
-- `Builds/VisualStudio2022/OtoDeck.sln`
-
----
-
-## Suggested Next Documentation To Add Later
-
-If you want, the next documentation pass can split this into:
-- `README.md` → user/developer overview
-- `ARCHITECTURE.md` → deep internal structure
-- `BUILD.md` → build and regeneration workflow
-- `UI.md` → UI overhaul brief and design direction
-
-For now, this README is meant to be the single practical overview of how the project works.
+| File | Role |
+|------|------|
+| `Source/Main.cpp` | App entry point |
+| `Source/audio/DJAudioPlayer.h/cpp` | Audio engine |
+| `Source/audio/BPMAnalyser.h/cpp` | BPM detection |
+| `Source/gui/MainComponent.h/cpp` | Root UI + audio callback |
+| `Source/gui/DeckGUI.h/cpp` | Deck control surface |
+| `Source/gui/WaveformDisplay.h/cpp` | Waveform component |
+| `Source/gui/MixerPanel.h/cpp` | Mixer panel |
+| `Source/gui/VUMeter.h` | VU meter |
+| `Source/gui/DeckLoadCellComponent.h` | Library row action cell |
+| `Source/library/PlaylistComponent.h/cpp` | Library browser |
+| `Source/shared/CustomLookAndFeel.h` | Theme |
+| `Source/shared/DeckState.h` | Deck state snapshot |
+| `Source/shared/Callbacks.h` | Callback typedefs |
+| `OtoDeck.jucer` | JUCE project file |
+| `Builds/VisualStudio2022/OtoDeck.sln` | VS solution |
