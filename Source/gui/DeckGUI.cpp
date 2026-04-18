@@ -144,14 +144,6 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
         addAndMakeVisible(hotcuePads[static_cast<size_t>(i)]);
     }
 
-    // Clear all hotcues button
-    clearHotcuesButton.setColour(juce::TextButton::buttonColourId,
-                                 CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).withAlpha(0.55f));
-    clearHotcuesButton.setColour(juce::TextButton::textColourOffId,
-                                 CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
-    clearHotcuesButton.addListener(this);
-    addAndMakeVisible(clearHotcuesButton);
-
     bpmAnalyser_.onResult = [this](double bpm)
     {
         player.setBPM(bpm);
@@ -196,7 +188,6 @@ DeckGUI::~DeckGUI()
 
     for (auto& pad : hotcuePads)
         pad.removeListener(this);
-    clearHotcuesButton.removeListener(this);
 
     for (auto* s : { &volSlider, &speedSlider, &posSlider })
         s->removeListener(this);
@@ -326,19 +317,15 @@ void DeckGUI::resized()
 
     area.removeFromTop(gap);
 
-    // Hotcue pads row (8 pads + CLR button)
+    // Hotcue pads row (8 pads)
     auto hotcueRow = area.removeFromTop(26);
-    const int padGap = 3;
-    const int clrW   = 34;
-    const int padsW  = hotcueRow.getWidth() - clrW - padGap;
-    const int padW   = (padsW - padGap * 7) / 8;
+    const int padGap = 4;
+    const int padW = (hotcueRow.getWidth() - padGap * 7) / 8;
     for (int i = 0; i < kNumHotcues; ++i)
     {
         hotcuePads[static_cast<size_t>(i)].setBounds(hotcueRow.removeFromLeft(padW));
         if (i < kNumHotcues - 1) hotcueRow.removeFromLeft(padGap);
     }
-    hotcueRow.removeFromLeft(padGap);
-    clearHotcuesButton.setBounds(hotcueRow);
 
     area.removeFromTop(gap);
 
@@ -447,9 +434,14 @@ void DeckGUI::buttonClicked(juce::Button* b)
     else if (b == &tapButton)         recordTap();
     else if (b == &resetVolumeButton) resetVolumeToDefault();
     else if (b == &resetSpeedButton)  resetSpeedToDefault();
+<<<<<<< HEAD
     else if (b == &lpfButton)            player.setLowPassEnabled(!player.isLowPassEnabled());
     else if (b == &hpfButton)            player.setHighPassEnabled(!player.isHighPassEnabled());
     else if (b == &clearHotcuesButton)   clearAllHotcues();
+=======
+    else if (b == &lpfButton)         player.setLowPassEnabled(!player.isLowPassEnabled());
+    else if (b == &hpfButton)         player.setHighPassEnabled(!player.isHighPassEnabled());
+>>>>>>> 57024f73f0a38f47c9ee80ea82efc920d52eca18
 
     // Hotcue pads (standalone check — not part of the if-else chain)
     for (int i = 0; i < kNumHotcues; ++i)
@@ -607,6 +599,7 @@ void DeckGUI::resetSpeedToDefault()
     speedSlider.setValue(1.0, juce::sendNotificationSync);
 }
 
+<<<<<<< HEAD
 void DeckGUI::clearAllHotcues()
 {
     for (int i = 0; i < kNumHotcues; ++i)
@@ -614,6 +607,8 @@ void DeckGUI::clearAllHotcues()
     updateHotcuePadColors();
 }
 
+=======
+>>>>>>> 57024f73f0a38f47c9ee80ea82efc920d52eca18
 void DeckGUI::updateHotcuePadColors()
 {
     // Cycle through 4 accent colours for the 8 pads
