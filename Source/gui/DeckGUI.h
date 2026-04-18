@@ -86,7 +86,9 @@ private:
     // Hotcue pads (8 per deck)
     static constexpr int kNumHotcues = 8;
     std::array<juce::TextButton, kNumHotcues> hotcuePads;
+    juce::TextButton clearHotcuesButton{ "CLR" };
     void updateHotcuePadColors();
+    void clearAllHotcues();
 
     // Sliders
     juce::Slider volSlider;
