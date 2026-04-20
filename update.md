@@ -1,505 +1,585 @@
-# OtoDecks — Claude Code Upgrade Roadmap
+# OtoDecks Professional Upgrade Roadmap
 
-This file is the working roadmap for improving OtoDecks beyond its current shipped state.
+This roadmap replaces the earlier feature dump with a product-focused plan for turning
+OtoDecks from a functional coursework-style JUCE DJ app into a more polished desktop DJ
+application.
 
-It is written so a coding agent such as Claude Code can use it as a planning and execution brief.
-
----
-
-## Project Intent
-
-OtoDecks is being upgraded from a functional JUCE DJ coursework app into a more professional desktop DJ application.
-
-The goal is not to add random features.
-The goal is to improve the app in a way that makes it feel more like a real DJ product:
-- stronger performance workflow
-- better audio tools
-- more useful deck controls
-- improved browser/library usability
-- more professional polish
-- features added in sensible stages without destabilizing the existing app
+The goal is not to add every possible DJ feature. The goal is to improve the app in a
+stable order so each milestone makes the app feel more useful, more intentional, and more
+professional.
 
 ---
 
-## Important Rules For Any Agent Updating This Project
+## Product Direction
 
-1. Do not break existing core playback.
-2. Prefer milestone-sized changes over giant mixed changes.
-3. Keep code structure aligned with the current source layout:
+OtoDecks should become a clean two-deck DJ application with:
+
+- strong deck workflow
+- clearer tempo, cue, loop, and sync controls
+- a more professional waveform-led interface
+- a mixer that feels like a real center console
+- a more useful music library
+- reliable recording and performance tools
+- restrained visual polish instead of busy coursework-style controls
+
+Every change should protect the existing core playback behavior.
+
+---
+
+## Working Rules
+
+1. Preserve core playback, loading, cueing, looping, and mixing.
+2. Prefer milestone-sized improvements over large mixed changes.
+3. Keep the current source structure:
    - `Source/audio`
    - `Source/gui`
    - `Source/library`
    - `Source/shared`
-4. If project files move or new files are added, ensure the JUCE project / generated build files stay in sync.
-5. Preserve current working features while extending the app.
-6. Prioritize real DJ workflow improvements over novelty features.
-7. When uncertain, improve the highest-value, lowest-risk item first.
+4. Keep the JUCE project and generated Visual Studio project in sync when adding files.
+5. Make labels understandable to a non-technical DJ user.
+6. Avoid adding advanced features before the deck, mixer, and library feel solid.
+7. Verify each milestone with a build and a quick app launch.
 
 ---
 
 # Recommended Upgrade Order
 
-The items below are grouped by implementation priority.
+## Milestone 1 - Professional Deck And Mixer Polish
 
----
+This should be the next major milestone. It improves the app's first impression and makes
+the existing features easier to understand.
 
-## PHASE 1 — High-Value Upgrades (Best Next Work)
+### 1. Tempo Range Toggle
 
-These are the best immediate improvements because they add real value without exploding complexity.
-
-### 1. Master Recording
-**Priority:** Very High  
-**Impact:** High  
-**Difficulty:** Medium
-
-#### Why it matters
-A DJ app feels much more real when the user can record the master output.
-
-#### Build target
-- Add master output recording to WAV file
-- Add record / stop controls in a sensible global UI location
-- Use a writer thread so recording does not block audio
-
-#### Likely files
-- `Source/gui/MainComponent.h`
-- `Source/gui/MainComponent.cpp`
-- possibly a new helper in `Source/audio/`
-
-#### Notes for implementation
-- Use `juce::AudioFormatWriter`
-- Avoid allocations in the audio callback
-- Make start/stop safe and obvious
-
----
-
-### 2. Tempo Range Toggle
 **Priority:** Very High  
 **Impact:** High  
 **Difficulty:** Low to Medium
 
-#### Why it matters
-Real DJ workflows often need different tempo slider ranges depending on style and precision needs.
+Current `SPEED` control feels generic. Professional DJ apps usually expose tempo/pitch
+ranges such as:
 
-#### Build target
-Add range options for tempo/speed control, such as:
-- ±8%
-- ±16%
-- ±50%
-- wider fallback / x2 mode if desired
+- `+/-8%`
+- `+/-16%`
+- `+/-50%`
 
-#### Likely files
+#### Build Target
+
+- Rename `SPEED` to `TEMPO`.
+- Add range buttons or a compact selector per deck.
+- Default to a safe DJ-style range, probably `+/-16%`.
+- Keep internal speed/resampling limits separate from the displayed user range.
+- Show the current tempo value as a percentage, for example `+4.2%`.
+
+#### Likely Files
+
 - `Source/gui/DeckGUI.h`
 - `Source/gui/DeckGUI.cpp`
 - `Source/audio/DJAudioPlayer.h`
 - `Source/audio/DJAudioPlayer.cpp`
 
-#### Notes for implementation
-- Separate the displayed slider range from the internal resampling limit cleanly
-- Keep current default behavior safe
-
 ---
 
-### 3. Waveform Overview Strip
-**Priority:** High  
+### 2. Waveform Overview Strip
+
+**Priority:** Very High  
 **Impact:** High  
 **Difficulty:** Medium
 
-#### Why it matters
-A mini overview waveform makes navigation much faster and more professional.
+The waveform should be the visual center of each deck. A compact overview strip makes the
+app feel much closer to professional DJ software.
 
-#### Build target
-- Add a compact full-track overview strip above or around the main waveform
-- Allow click-to-jump anywhere in the track
-- Show loop region and current playhead at a glance
+#### Build Target
 
-#### Likely files
+- Add a small full-track waveform overview above or below the main waveform.
+- Show current playhead.
+- Show cue marker.
+- Show loop region.
+- Allow click-to-jump anywhere in the track.
+- Keep the visual clean and avoid crowding the deck.
+
+#### Likely Files
+
 - `Source/gui/WaveformDisplay.h`
 - `Source/gui/WaveformDisplay.cpp`
-
-#### Notes for implementation
-- Keep it visually clean
-- Do not make the deck feel crowded again
+- possibly `Source/gui/DeckGUI.cpp`
 
 ---
 
-### 4. Wire Delay Properly + Add One More Musical Effect
+### 3. Deck Label And Control Cleanup
+
 **Priority:** High  
-**Impact:** High  
-**Difficulty:** Medium
+**Impact:** Medium-High  
+**Difficulty:** Low
 
-#### Why it matters
-Effects are core to DJ performance, but they must be musically useful, not just present in name.
+Some labels still feel like implementation names rather than DJ product language.
 
-#### Build target
-- fully wire existing delay into the audible path
-- expose usable control(s)
-- then add one additional effect such as:
-  - reverb, or
-  - flanger
+#### Recommended Label Changes
 
-#### Likely files
-- `Source/audio/DJAudioPlayer.h`
-- `Source/audio/DJAudioPlayer.cpp`
-- `Source/gui/DeckGUI.h`
+- `SPEED` -> `TEMPO`
+- `POSITION` -> `SEEK`
+- `SPD RESET` -> `RESET TEMPO`
+- `VOL RESET` -> `RESET VOL`
+- Keep `BASS`, `MIDS`, `TREBLE` for EQ.
+- Keep filter labels clear:
+  - `LOW CUT` means removing bass/low frequencies.
+  - `HIGH CUT` means removing treble/high frequencies.
+
+#### Build Target
+
+- Rename controls consistently.
+- Make button text fit at the minimum supported window size.
+- Keep primary actions visually stronger than secondary actions.
+
+#### Likely Files
+
 - `Source/gui/DeckGUI.cpp`
-
-#### Notes for implementation
-- Keep effects subtle and performance-friendly
-- avoid cluttering the deck UI with too many knobs at once
+- `Source/gui/MixerPanel.cpp`
+- `Source/shared/CustomLookAndFeel.h`
 
 ---
 
-### 5. EQ Kill Switches
+### 4. EQ Kill Switches
+
 **Priority:** High  
 **Impact:** High  
 **Difficulty:** Medium
 
-#### Why it matters
-Quick bass/mid/high kills are very DJ-appropriate and more useful live than only having continuous EQ sliders.
+EQ kill buttons are very DJ-appropriate. They make the mixer more useful for live
+performance than continuous EQ knobs alone.
 
-#### Build target
-- Add kill buttons for LOW / MID / HIGH per deck
-- Kill should behave like real full-cut behavior, not a weak reduction
+#### Build Target
 
-#### Likely files
+- Add kill buttons for each EQ band:
+  - Bass kill
+  - Mids kill
+  - Treble kill
+- Add the buttons per deck in the mixer.
+- Kills should behave like full cuts, not weak reductions.
+- Make slider and kill state interaction predictable:
+  - If kill is active, the band is muted/cut.
+  - Moving the EQ knob can either keep kill active until toggled off, or automatically clear kill.
+  - Pick one behavior and keep it consistent.
+
+#### Likely Files
+
 - `Source/audio/DJAudioPlayer.h`
 - `Source/audio/DJAudioPlayer.cpp`
 - `Source/gui/MixerPanel.h`
 - `Source/gui/MixerPanel.cpp`
 
-#### Notes for implementation
-- Ensure the kill state and slider state interact predictably
+---
+
+### 5. Mixer Visual Refinement
+
+**Priority:** High  
+**Impact:** Medium-High  
+**Difficulty:** Medium
+
+The mixer should feel like a center console, not a narrow column of controls.
+
+#### Build Target
+
+- Make VU meters more prominent.
+- Improve spacing around EQ knobs and labels.
+- Make the crossfader wider and more tactile.
+- Keep curve selector buttons smaller than performance controls.
+- Use clearer deck color ownership:
+  - Deck A controls use blue accents.
+  - Deck B controls use orange accents.
+  - Master/recording controls use green/red accents where appropriate.
+
+#### Likely Files
+
+- `Source/gui/MixerPanel.h`
+- `Source/gui/MixerPanel.cpp`
+- `Source/gui/VUMeter.h`
+- `Source/shared/CustomLookAndFeel.h`
 
 ---
 
-## PHASE 2 — Strong Product Upgrades
+## Milestone 2 - Recording And Performance Tools
 
-These are excellent next steps once Phase 1 is stable.
+This milestone adds features that make the app useful for real sessions, not only playback
+testing.
 
-### 6. Pitch / Key Lock
-**Priority:** High  
+### 6. Master Recording
+
+**Priority:** Very High  
 **Impact:** High  
-**Difficulty:** Medium to High
+**Difficulty:** Medium
 
-#### Why it matters
-Changing speed without changing musical pitch is a major DJ quality upgrade.
+A DJ app feels much more serious when the user can record the master output.
 
-#### Build target
-- Add a pitch/key lock toggle
-- Preserve pitch while tempo changes
+#### Build Target
 
-#### Likely files
-- `Source/audio/DJAudioPlayer.h`
-- `Source/audio/DJAudioPlayer.cpp`
+- Add global `REC` / `STOP REC` control near the mixer or master section.
+- Record the final master output to a WAV file.
+- Show recording time.
+- Use a writer thread so recording never blocks the audio callback.
+- Choose a sensible default save location, such as the user's Music or Documents folder.
 
-#### Notes for implementation
-- JUCE alone may not provide the best result here
-- Rubber Band integration may be the right long-term path
+#### Likely Files
 
----
-
-### 7. Phase-Aligned Sync
-**Priority:** High  
-**Impact:** High  
-**Difficulty:** High
-
-#### Why it matters
-Current sync behavior is useful but limited.
-Real sync should consider beat phase, not just tempo/BPM.
-
-#### Build target
-- extend SYNC to align beat phase
-- optionally provide timing feedback before sync fires
-
-#### Likely files
-- `Source/gui/DeckGUI.cpp`
+- `Source/gui/MainComponent.h`
 - `Source/gui/MainComponent.cpp`
-- possibly waveform / BPM support files
-
-#### Notes for implementation
-- only worth doing if BPM estimation is reliable enough
+- possibly a new helper in `Source/audio`
 
 ---
 
-### 8. Library Search Filters
+### 7. Remaining Time Warning
+
 **Priority:** Medium-High  
-**Impact:** Medium-High  
-**Difficulty:** Medium
-
-#### Why it matters
-A DJ library becomes much more useful when filtering by more than just text.
-
-#### Build target
-Add filters for:
-- BPM range
-- duration range
-- possibly artist/title combined quick filtering remains as-is
-
-#### Likely files
-- `Source/library/PlaylistComponent.h`
-- `Source/library/PlaylistComponent.cpp`
-
----
-
-### 9. BPM Analyser Accuracy Upgrade
-**Priority:** Medium-High  
-**Impact:** Medium-High  
-**Difficulty:** Medium
-
-#### Why it matters
-Several advanced features become better if BPM detection becomes more trustworthy.
-
-#### Build target
-- improve BPM detection beyond the current energy-based estimate
-- add a confirmation pass or outlier rejection
-
-#### Likely files
-- `Source/audio/BPMAnalyser.h`
-- `Source/audio/BPMAnalyser.cpp`
-
----
-
-### 10. Key Detection
-**Priority:** Medium  
-**Impact:** Medium-High  
-**Difficulty:** Medium to High
-
-#### Why it matters
-Useful for harmonic mixing and makes the library more powerful.
-
-#### Build target
-- detect musical key on load
-- display key in library and/or deck header
-- optional Camelot notation support later
-
-#### Likely files
-- `Source/audio/`
-- `Source/library/PlaylistComponent.*`
-- deck/library display code
-
----
-
-### 11. Pitch Nudge Buttons
-**Priority:** Medium  
-**Impact:** Medium  
-**Difficulty:** Low to Medium
-
-#### Why it matters
-Good for manual beat matching and subtle correction.
-
-#### Build target
-- add small temporary nudge buttons
-- nudge should not permanently rewrite the speed slider value unless designed intentionally
-
-#### Likely files
-- `Source/gui/DeckGUI.h`
-- `Source/gui/DeckGUI.cpp`
-- maybe `DJAudioPlayer`
-
----
-
-### 12. Remaining Time Warning
-**Priority:** Medium  
 **Impact:** Medium  
 **Difficulty:** Low
 
-#### Why it matters
-Small feature, but useful live.
+This is a small feature, but it makes the deck feel alive and performance-aware.
 
-#### Build target
-- warning visual when track is nearly over
-- for example under 30 seconds remaining
+#### Build Target
 
-#### Likely files
+- When a loaded track has less than 30 seconds remaining:
+  - change the time label color
+  - optionally show `ENDING`
+  - optionally add a subtle waveform warning color
+- Do not trigger the warning for an empty deck.
+
+#### Likely Files
+
 - `Source/gui/DeckGUI.cpp`
 - `Source/gui/WaveformDisplay.cpp`
 
 ---
 
-## PHASE 3 — Bigger Expansions
+### 8. Delay Effect UI
 
-These are good ideas, but should come after the core DJ workflow is stronger.
-
-### 13. Spectrum Analyzer
-**Priority:** Medium  
-**Impact:** Medium  
-**Difficulty:** Medium to High
-
-#### Why it matters
-Looks professional and can help visually, but is not core compared to recording, effects, and better sync.
-
-#### Build target
-- FFT-based spectrum display
-- either overlay or separate compact panel
-
-#### Likely files
-- new `Source/gui/SpectrumAnalyser.h/.cpp`
-- `DeckGUI` integration
-
----
-
-### 14. Sampler Pad Bank
-**Priority:** Medium  
+**Priority:** High  
 **Impact:** Medium-High  
-**Difficulty:** High
-
-#### Why it matters
-Can be great for performance, but adds major complexity.
-
-#### Build target
-- 4 to 8 one-shot sample pads
-- separate from hotcues
-
-#### Likely files
-- new `Source/audio/SamplerPlayer.h/.cpp`
-- `Source/gui/DeckGUI.h/.cpp`
-
----
-
-### 15. Auto-Gain Normalize
-**Priority:** Medium  
-**Impact:** Medium  
 **Difficulty:** Medium
 
-#### Why it matters
-Helpful for more consistent perceived loudness across tracks.
+The audio engine already contains delay support, but the UI does not expose it in a useful
+way.
 
-#### Build target
-- scan loudness / RMS on load
-- normalize trim target sensibly
+#### Build Target
 
-#### Likely files
-- `Source/audio/DJAudioPlayer.h/.cpp`
+- Add a compact FX section per deck.
+- Start with one reliable effect: delay.
+- Include:
+  - Delay on/off
+  - Time control
+  - Mix/wet control
+- Keep feedback conservative to avoid runaway sound.
+- Avoid cluttering the deck with too many knobs.
+
+#### Likely Files
+
+- `Source/audio/DJAudioPlayer.h`
+- `Source/audio/DJAudioPlayer.cpp`
+- `Source/gui/DeckGUI.h`
 - `Source/gui/DeckGUI.cpp`
 
 ---
 
-### 16. Rebindable Keyboard Shortcuts
+### 9. Pitch Nudge Buttons
+
 **Priority:** Medium  
 **Impact:** Medium  
-**Difficulty:** Medium
+**Difficulty:** Low to Medium
 
-#### Why it matters
-Good usability feature, but not more important than core DJ workflow upgrades.
+Pitch nudge helps manual beat matching.
 
-#### Build target
-- shortcut preferences dialog
-- configurable mapping
-- save/load bindings
+#### Build Target
 
-#### Likely files
-- `Source/gui/MainComponent.cpp`
-- maybe new settings helper files
+- Add small temporary nudge buttons per deck.
+- Nudge should temporarily speed up or slow down playback.
+- Releasing the button should return to the current tempo slider value.
+
+#### Likely Files
+
+- `Source/gui/DeckGUI.h`
+- `Source/gui/DeckGUI.cpp`
+- possibly `Source/audio/DJAudioPlayer.h`
+- possibly `Source/audio/DJAudioPlayer.cpp`
 
 ---
 
-## PHASE 4 — Advanced / Long-Term Ideas
+## Milestone 3 - Library Upgrade
 
-These are valid, but should not be tackled before the project feels stable and polished.
+The current playlist works, but still looks and feels like a basic table. This milestone
+makes the library more useful for DJ workflow.
 
-### 17. MIDI Controller Mapping
+### 10. Library Filters
+
+**Priority:** High  
+**Impact:** Medium-High  
+**Difficulty:** Medium
+
+#### Build Target
+
+- Keep text search.
+- Add BPM min/max filter.
+- Add duration filter.
+- Improve sorting behavior.
+- Keep `Load A` and `Load B` visually tied to deck colors.
+
+#### Likely Files
+
+- `Source/library/PlaylistComponent.h`
+- `Source/library/PlaylistComponent.cpp`
+
+---
+
+### 11. Better Track Browser Presentation
+
+**Priority:** Medium-High  
+**Impact:** Medium  
+**Difficulty:** Low to Medium
+
+#### Build Target
+
+- Improve row selection styling.
+- Add clearer now-playing state.
+- Make missing-file handling visible if a saved track path no longer exists.
+- Consider a selected-track info area.
+- Keep the library compact so it does not overpower the decks.
+
+#### Likely Files
+
+- `Source/library/PlaylistComponent.h`
+- `Source/library/PlaylistComponent.cpp`
+- `Source/gui/DeckLoadCellComponent.h`
+
+---
+
+### 12. Key Detection
+
+**Priority:** Medium  
+**Impact:** Medium-High  
+**Difficulty:** Medium to High
+
+Musical key detection helps harmonic mixing, but it should come after the library has
+better filtering and presentation.
+
+#### Build Target
+
+- Detect musical key on load or during analysis.
+- Display key in the library.
+- Optionally display key in the deck header.
+- Consider Camelot notation later.
+
+#### Likely Files
+
+- `Source/audio`
+- `Source/library/PlaylistComponent.h`
+- `Source/library/PlaylistComponent.cpp`
+- `Source/gui/DeckGUI.cpp`
+
+---
+
+## Milestone 4 - Analysis And Sync Quality
+
+These upgrades improve the intelligence of the app. They should come after the UI and
+core workflow feel better.
+
+### 13. BPM Analyser Accuracy Upgrade
+
+**Priority:** Medium-High  
+**Impact:** Medium-High  
+**Difficulty:** Medium
+
+Current BPM detection is energy-based. It is useful, but not reliable enough for advanced
+sync behavior.
+
+#### Build Target
+
+- Improve onset detection.
+- Add outlier rejection.
+- Add a confirmation pass.
+- Avoid unstable BPM values.
+- Keep analysis on a background thread.
+
+#### Likely Files
+
+- `Source/audio/BPMAnalyser.h`
+- `Source/audio/BPMAnalyser.cpp`
+
+---
+
+### 14. Phase-Aligned Sync
+
+**Priority:** Medium  
+**Impact:** High  
+**Difficulty:** High
+
+This is valuable, but only worth doing after BPM detection becomes more trustworthy.
+
+#### Build Target
+
+- Extend sync beyond matching BPM/speed.
+- Estimate beat phase.
+- Align the target deck to the source deck's beat grid.
+- Provide timing feedback before or after sync.
+
+#### Likely Files
+
+- `Source/gui/DeckGUI.cpp`
+- `Source/gui/MainComponent.cpp`
+- `Source/gui/WaveformDisplay.cpp`
+- possibly `Source/audio/BPMAnalyser.cpp`
+
+---
+
+## Milestone 5 - Advanced Features
+
+These are good long-term ideas, but should not be built before the deck, mixer, recording,
+library, and analysis workflows are solid.
+
+### 15. Pitch / Key Lock
+
+**Priority:** Medium-Later  
+**Impact:** High  
+**Difficulty:** Medium to High
+
+Changing tempo without changing musical pitch is a major professional feature. However,
+high-quality key lock usually needs better time-stretching than basic JUCE resampling.
+
+#### Notes
+
+- Research Rubber Band or another time-stretching approach.
+- Avoid shipping a low-quality version that sounds broken.
+
+---
+
+### 16. Spectrum Analyzer
+
+**Priority:** Later  
+**Impact:** Medium  
+**Difficulty:** Medium to High
+
+A spectrum analyzer can look professional, but it should not come before recording,
+tempo polish, waveform polish, and library upgrades.
+
+---
+
+### 17. Sampler Pad Bank
+
+**Priority:** Later  
+**Impact:** Medium-High  
+**Difficulty:** High
+
+A sampler is useful, but it adds new audio-player complexity. Build it only after the main
+deck workflow is stable.
+
+---
+
+### 18. Auto-Gain Normalize
+
+**Priority:** Later  
+**Impact:** Medium  
+**Difficulty:** Medium
+
+Useful for consistency across tracks, but it depends on reliable analysis and careful gain
+staging.
+
+---
+
+### 19. Rebindable Keyboard Shortcuts
+
+**Priority:** Later  
+**Impact:** Medium  
+**Difficulty:** Medium
+
+Good usability feature, but less important than improving deck, mixer, and library
+workflow.
+
+---
+
+### 20. MIDI Controller Mapping
+
 **Priority:** Long-Term  
 **Impact:** Very High  
 **Difficulty:** High
 
-#### Why it matters
-Huge value for real DJ use, but implementation complexity is significant.
+Very valuable for a real DJ product, but it is a major architecture and UX project.
 
 ---
 
-### 18. Track History Log
+### 21. Track History Log
+
 **Priority:** Long-Term  
 **Impact:** Medium  
 **Difficulty:** Low to Medium
 
-#### Why it matters
-Useful for set tracking and exports.
+Can be added after recording and library improvements.
 
 ---
 
-### 19. Stem Separation
+### 22. Stem Separation
+
 **Priority:** Long-Term  
 **Impact:** High  
 **Difficulty:** Very High
 
-#### Why it matters
-Very modern and powerful, but far beyond core app maturity right now.
-
----
-
-### 20. Waveform Color By Frequency
-**Priority:** Long-Term  
-**Impact:** Medium  
-**Difficulty:** High
-
----
-
-### 21. Dark / Light Theme Toggle
-**Priority:** Long-Term  
-**Impact:** Medium  
-**Difficulty:** Medium
-
----
-
-### 22. OSC / Network Control
-**Priority:** Long-Term  
-**Impact:** Medium-High  
-**Difficulty:** High
+Too large for the current maturity of the project.
 
 ---
 
 ### 23. VST / AU Plugin Effects
+
 **Priority:** Long-Term  
 **Impact:** High  
 **Difficulty:** Very High
 
----
-
-## Best Immediate Recommendation For Claude Code
-
-If Claude Code is going to improve this project, the recommended order is:
-
-1. **Master Recording**
-2. **Tempo Range Toggle**
-3. **Waveform Overview Strip**
-4. **Wire Delay Properly + Add One More Musical Effect**
-5. **EQ Kill Switches**
-6. **Pitch / Key Lock**
-7. **Library Search Filters**
-8. **BPM Accuracy Upgrade**
-9. **Phase-Aligned Sync**
-10. **Key Detection**
-
-This order gives the best balance of:
-- user-visible value
-- technical realism
-- product maturity
-- manageable risk
+Powerful, but far beyond the next practical upgrade steps.
 
 ---
 
-## How Claude Code Should Work Through This File
+# UI Direction
 
-For each selected item:
-1. inspect current implementation first
-2. identify all impacted files
-3. make a small implementation plan
-4. implement in a milestone-sized chunk
-5. avoid mixing unrelated upgrades in one commit
-6. keep UI labels clear and DJ-appropriate
-7. preserve build stability and existing working features
+The app should feel less like a coursework submission and more like a compact DJ console.
+The most important UI change is hierarchy: make the user understand what matters first.
+
+## Deck UI Principles
+
+- The waveform should be the hero of each deck.
+- Transport buttons should be obvious and larger than secondary controls.
+- Tempo controls should show meaningful DJ values, not only raw slider movement.
+- Hotcues and loops should feel like performance pads.
+- Repeat, filters, and effects should be grouped as deck tools.
+- Avoid making every control the same visual weight.
+
+## Mixer UI Principles
+
+- The mixer should feel like the center console.
+- VU meters should be easier to read.
+- EQ knobs should have clear names: `BASS`, `MIDS`, `TREBLE`.
+- Kill buttons should sit close to their EQ bands.
+- Crossfader should be visually wide and important.
+- Curve selector should be compact.
+
+## Library UI Principles
+
+- The browser should feel like a music library, not just a table.
+- Search and filters should be obvious.
+- Deck load actions should use deck colors.
+- Now-playing state should be clear.
+- Missing-file states should be handled gracefully.
 
 ---
 
-## Final Guidance
+# Best Next Work
 
-The project does not need every possible DJ feature immediately.
-It needs the right features in the right order.
+The best next implementation order is:
 
-The best upgrades are the ones that:
-- improve live usability
-- improve audio control quality
-- improve workflow clarity
-- make the app feel more like a serious DJ tool
+1. Tempo range toggle and tempo label cleanup.
+2. Waveform overview strip.
+3. EQ kill switches.
+4. Mixer visual refinement.
+5. Master recording.
+6. Remaining time warning.
+7. Delay effect UI.
+8. Library BPM/duration filters.
+9. BPM analyser accuracy upgrade.
+10. Phase-aligned sync.
 
-Use this file as a roadmap, not a dump list.
+This order improves the visible product quickly, keeps risk manageable, and avoids jumping
+into large advanced features before the app feels polished at its core.
+

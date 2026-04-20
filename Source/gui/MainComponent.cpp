@@ -1,6 +1,22 @@
 #include "MainComponent.h"
 #include "../shared/CustomLookAndFeel.h"
 
+namespace
+{
+    juce::File getProjectRootFromExecutable()
+    {
+        auto dir = juce::File::getSpecialLocation(juce::File::currentExecutableFile)
+                       .getParentDirectory();
+
+        for (int i = 0; i < 5 && dir.getParentDirectory() != dir; ++i)
+            dir = dir.getParentDirectory();
+
+        return dir.getChildFile("Source").isDirectory()
+            ? dir
+            : juce::File::getCurrentWorkingDirectory();
+    }
+}
+
 MainComponent::MainComponent()
 {
     setLookAndFeel(&customLook);
@@ -28,6 +44,8 @@ MainComponent::MainComponent()
 
     deckGUI1->getOtherDeckBPM = [this]() { return player2.getBPM(); };
     deckGUI2->getOtherDeckBPM = [this]() { return player1.getBPM(); };
+    deckGUI1->getOtherDeckPositionSeconds = [this]() { return player2.getCurrentPositionSeconds(); };
+    deckGUI2->getOtherDeckPositionSeconds = [this]() { return player1.getCurrentPositionSeconds(); };
 
     mixerPanel = std::make_unique<MixerPanel>(player1, player2, masterGain_);
 
@@ -35,11 +53,28 @@ MainComponent::MainComponent()
     addAndMakeVisible(mixerPanel.get());
     addAndMakeVisible(deckGUI2.get());
     addAndMakeVisible(playlistComponent);
+    addAndMakeVisible(recordButton);
+    addAndMakeVisible(recordStatusLabel);
+
+    recordButton.addListener(this);
+    recordButton.setColour(juce::TextButton::buttonColourId,
+                           CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).withAlpha(0.78f));
+    recordButton.setColour(juce::TextButton::textColourOffId,
+                           CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
+
+    recordStatusLabel.setText("READY", juce::dontSendNotification);
+    recordStatusLabel.setFont(juce::Font(juce::FontOptions(10.5f).withStyle("Bold")));
+    recordStatusLabel.setJustificationType(juce::Justification::centred);
+    recordStatusLabel.setColour(juce::Label::textColourId,
+                                CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
+    recordingThread_.startThread();
+    startTimerHz(4);
 
     playlistComponent.loadTrackToDeck = [this](juce::File file, int deckNumber)
     {
         if (deckNumber == 1) { player1.loadURL(juce::URL{ file }); deckGUI1->loadFile(file); }
         else if (deckNumber == 2) { player2.loadURL(juce::URL{ file }); deckGUI2->loadFile(file); }
+        logTrackHistory(deckNumber, file);
         playlistComponent.setNowPlayingFile(file);
     };
 
@@ -57,6 +92,10 @@ MainComponent::MainComponent()
 
 MainComponent::~MainComponent()
 {
+    stopTimer();
+    stopRecording();
+    recordingThread_.stopThread(1000);
+    recordButton.removeListener(this);
     removeKeyListener(this);
     deckGUI1   = nullptr;
     deckGUI2   = nullptr;
@@ -68,6 +107,7 @@ MainComponent::~MainComponent()
 //==============================================================================
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 {
+    recordingSampleRate_ = sampleRate;
     player1.prepareToPlay(samplesPerBlockExpected, sampleRate);
     player2.prepareToPlay(samplesPerBlockExpected, sampleRate);
 
@@ -82,6 +122,17 @@ void MainComponent::getNextAudioBlock(const juce::AudioSourceChannelInfo& buffer
     bufferToFill.buffer->applyGain(bufferToFill.startSample,
                                     bufferToFill.numSamples,
                                     masterGain_.load());
+
+    if (auto* writer = activeWriter_.load())
+    {
+        const float* channels[2] = {
+            bufferToFill.buffer->getReadPointer(0, bufferToFill.startSample),
+            bufferToFill.buffer->getNumChannels() > 1
+                ? bufferToFill.buffer->getReadPointer(1, bufferToFill.startSample)
+                : bufferToFill.buffer->getReadPointer(0, bufferToFill.startSample)
+        };
+        writer->write(channels, bufferToFill.numSamples);
+    }
 }
 
 void MainComponent::releaseResources()
@@ -124,9 +175,21 @@ void MainComponent::resized()
 
     if (deckGUI1)   deckGUI1->setBounds(deckArea.removeFromLeft(deckW));
     deckArea.removeFromLeft(sectionGap);
-    if (mixerPanel) mixerPanel->setBounds(deckArea.removeFromLeft(mixerW));
+    auto mixerBounds = deckArea.removeFromLeft(mixerW);
+    if (mixerPanel) mixerPanel->setBounds(mixerBounds);
     deckArea.removeFromLeft(sectionGap);
     if (deckGUI2)   deckGUI2->setBounds(deckArea);
+
+    const int recordW = 72;
+    const int statusW = 72;
+    const int recordGap = 8;
+    auto recordArea = juce::Rectangle<int>(mixerBounds.getCentreX() - (recordW + statusW + recordGap) / 2,
+                                           mixerBounds.getBottom() - 50,
+                                           recordW + statusW + recordGap,
+                                           26);
+    recordButton.setBounds(recordArea.removeFromLeft(recordW));
+    recordArea.removeFromLeft(recordGap);
+    recordStatusLabel.setBounds(recordArea.removeFromLeft(statusW));
 
     area.removeFromTop(12);
     playlistComponent.setBounds(area);
@@ -170,6 +233,125 @@ bool MainComponent::keyPressed(const juce::KeyPress& key, juce::Component*)
     }
 
     return false;
+}
+
+void MainComponent::buttonClicked(juce::Button* button)
+{
+    if (button == &recordButton)
+    {
+        if (activeWriter_.load() == nullptr)
+            startRecording();
+        else
+            stopRecording();
+    }
+}
+
+void MainComponent::timerCallback()
+{
+    updateRecordingUI();
+}
+
+void MainComponent::startRecording()
+{
+    if (activeWriter_.load() != nullptr)
+        return;
+
+    auto folder = getProjectRootFromExecutable().getChildFile("Recordings");
+    folder.createDirectory();
+
+    auto timestamp = juce::Time::getCurrentTime().formatted("%Y-%m-%d_%H-%M-%S");
+    auto file = folder.getChildFile("OtoDecks_Mix_" + timestamp + ".wav");
+
+    juce::WavAudioFormat wavFormat;
+    auto fileOutput = file.createOutputStream();
+    if (fileOutput == nullptr || !fileOutput->openedOk())
+    {
+        recordStatusLabel.setText("REC ERROR", juce::dontSendNotification);
+        return;
+    }
+    std::unique_ptr<juce::OutputStream> output(std::move(fileOutput));
+
+    auto options = juce::AudioFormatWriterOptions()
+                       .withSampleRate(recordingSampleRate_)
+                       .withNumChannels(2)
+                       .withBitsPerSample(24);
+    auto writer = wavFormat.createWriterFor(output, options);
+
+    if (writer == nullptr)
+    {
+        recordStatusLabel.setText("REC ERROR", juce::dontSendNotification);
+        return;
+    }
+
+    threadedWriter_ = std::make_unique<juce::AudioFormatWriter::ThreadedWriter>(writer.release(),
+                                                                                 recordingThread_,
+                                                                                 32768);
+    activeWriter_.store(threadedWriter_.get());
+    recordingStartMs_ = juce::Time::currentTimeMillis();
+    updateRecordingUI();
+}
+
+void MainComponent::stopRecording()
+{
+    activeWriter_.store(nullptr);
+    threadedWriter_.reset();
+    recordingStartMs_ = 0;
+    updateRecordingUI();
+}
+
+void MainComponent::updateRecordingUI()
+{
+    const bool recording = activeWriter_.load() != nullptr;
+    recordButton.setButtonText(recording ? "STOP" : "REC");
+    recordButton.setColour(juce::TextButton::buttonColourId,
+                           recording ? CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue)
+                                     : CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).withAlpha(0.72f));
+
+    if (!recording)
+    {
+        recordStatusLabel.setText("READY", juce::dontSendNotification);
+        recordStatusLabel.setColour(juce::Label::textColourId,
+                                    CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
+        return;
+    }
+
+    const auto elapsedMs = juce::Time::currentTimeMillis() - recordingStartMs_;
+    const int totalSeconds = static_cast<int>(elapsedMs / 1000);
+    const int minutes = totalSeconds / 60;
+    const int seconds = totalSeconds % 60;
+    recordStatusLabel.setText("REC " + juce::String(minutes) + ":" + juce::String(seconds).paddedLeft('0', 2),
+                              juce::dontSendNotification);
+    recordStatusLabel.setColour(juce::Label::textColourId,
+                                CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).brighter(0.2f));
+}
+
+void MainComponent::logTrackHistory(int deckNumber, const juce::File& file)
+{
+    if (!file.existsAsFile())
+        return;
+
+    auto historyFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                           .getChildFile("OtoDecksTrackHistory.csv");
+    const bool needsHeader = !historyFile.existsAsFile() || historyFile.getSize() == 0;
+
+    juce::FileOutputStream out(historyFile);
+    if (!out.openedOk())
+        return;
+
+    out.setPosition(historyFile.getSize());
+    if (needsHeader)
+        out << "Timestamp,Deck,Title,File Path\n";
+
+    auto escapeCsv = [](juce::String value)
+    {
+        value = value.replace("\"", "\"\"");
+        return "\"" + value + "\"";
+    };
+
+    out << escapeCsv(juce::Time::getCurrentTime().toISO8601(true)) << ","
+        << escapeCsv("Deck " + juce::String(deckNumber)) << ","
+        << escapeCsv(file.getFileNameWithoutExtension()) << ","
+        << escapeCsv(file.getFullPathName()) << "\n";
 }
 
 void MainComponent::showAboutDialog()

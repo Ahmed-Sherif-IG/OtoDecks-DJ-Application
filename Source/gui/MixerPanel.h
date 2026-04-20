@@ -24,6 +24,7 @@ private:
     void resetMixerDefaults();
     void resetDeck1EQ();
     void resetDeck2EQ();
+    void refreshKillButtons();
 
     enum class CrossfaderCurve { Linear, EqualPower, Cut };
     CrossfaderCurve crossfaderCurve_ { CrossfaderCurve::EqualPower };
@@ -48,11 +49,17 @@ private:
     // EQ deck 1
     juce::Slider low1Slider,  mid1Slider,  high1Slider;
     juce::Label  low1Label,   mid1Label,   high1Label;
+    juce::TextButton low1KillButton{ "KILL" };
+    juce::TextButton mid1KillButton{ "KILL" };
+    juce::TextButton high1KillButton{ "KILL" };
     juce::TextButton resetEq1Button{ "RESET A" };
 
     // EQ deck 2
     juce::Slider low2Slider,  mid2Slider,  high2Slider;
     juce::Label  low2Label,   mid2Label,   high2Label;
+    juce::TextButton low2KillButton{ "KILL" };
+    juce::TextButton mid2KillButton{ "KILL" };
+    juce::TextButton high2KillButton{ "KILL" };
     juce::TextButton resetEq2Button{ "RESET B" };
 
     // Crossfader curve buttons

@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "../shared/Callbacks.h"
+#include "../shared/CustomLookAndFeel.h"
 
 class DeckLoadCellComponent : public juce::Component,
                                public juce::Button::Listener
@@ -19,6 +20,19 @@ public:
         deck1Button.setButtonText("LOAD A");
         deck2Button.setButtonText("LOAD B");
         removeButton.setButtonText("DELETE");
+
+        deck1Button.setColour(juce::TextButton::buttonColourId,
+                              CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.78f));
+        deck2Button.setColour(juce::TextButton::buttonColourId,
+                              CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.78f));
+        removeButton.setColour(juce::TextButton::buttonColourId,
+                               CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+
+        for (auto* button : { &deck1Button, &deck2Button, &removeButton })
+        {
+            button->setColour(juce::TextButton::textColourOffId,
+                              CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
+        }
 
         deck1Button.addListener(this);
         deck2Button.addListener(this);

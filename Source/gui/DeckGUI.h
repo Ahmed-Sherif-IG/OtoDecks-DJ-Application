@@ -40,6 +40,7 @@ public:
 
     GetOtherDeckSpeedFn getOtherDeckSpeed;
     std::function<double()> getOtherDeckBPM;  // M5: BPM-based sync
+    std::function<double()> getOtherDeckPositionSeconds;
 
     float getSpeed() const;
 
@@ -48,6 +49,16 @@ private:
     void  recordTap();
     void resetVolumeToDefault();
     void resetSpeedToDefault();
+    void cycleTempoRange();
+    void setTempoRange(double rangePercent);
+    void setSpeedRatio(double ratio);
+    void applySpeedSliderToPlayer();
+    void alignBeatPhaseToOtherDeck();
+    void togglePitchNudge(int direction);
+    void refreshNudgeButtons();
+    double speedSliderValueToRatio() const;
+    double speedRatioToSliderValue(double ratio) const;
+    juce::String formatTempoPercent() const;
     juce::Colour getDeckGlowColour() const;
 
     juce::AudioFormatManager& formatManager_;
@@ -79,6 +90,9 @@ private:
     // M6: filter toggles
     juce::TextButton lpfButton { "LP" };
     juce::TextButton hpfButton { "HP" };
+    juce::TextButton delayButton { "DELAY" };
+    juce::TextButton nudgeDownButton { "NUDGE -" };
+    juce::TextButton nudgeUpButton { "NUDGE +" };
 
     // M5: TAP BPM
     juce::TextButton tapButton { "TAP" };
@@ -96,6 +110,8 @@ private:
     juce::Slider posSlider;
     juce::TextButton resetVolumeButton{ "VOL RESET" };
     juce::TextButton resetSpeedButton{ "SPD RESET" };
+    juce::TextButton tempoRangeButton{ "RNG 16%" };
+    juce::TextButton trackLoopButton{ "REPEAT" };
 
     // Labels
     juce::Label volLabel, speedLabel, posLabel;
@@ -112,6 +128,8 @@ private:
 
     // TAP BPM state (M5)
     std::vector<double> tapTimes_;
+    double tempoRangePercent_ = 16.0;
+    int pitchNudgeDirection_ = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DeckGUI)
 };

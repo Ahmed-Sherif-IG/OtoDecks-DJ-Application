@@ -22,7 +22,8 @@ static void styleSlider(juce::Slider& s, juce::Slider::SliderStyle style,
 static void styleLabel(juce::Label& l, const juce::String& text, juce::Colour colour)
 {
     l.setText(text, juce::dontSendNotification);
-    l.setFont(juce::Font(juce::FontOptions(10.5f).withStyle("Bold")));
+    const float fontSize = text.length() > 4 ? 8.5f : 10.5f;
+    l.setFont(juce::Font(juce::FontOptions(fontSize).withStyle("Bold")));
     l.setJustificationType(juce::Justification::centred);
     l.setColour(juce::Label::textColourId, colour);
 }
@@ -65,11 +66,11 @@ MixerPanel::MixerPanel(DJAudioPlayer& p1, DJAudioPlayer& p2, std::atomic<float>&
 
     juce::Slider* eqSliders1[] = { &low1Slider, &mid1Slider, &high1Slider };
     juce::Label* eqLabels1[]   = { &low1Label,  &mid1Label,  &high1Label };
-    const char* eqTexts1[]     = { "LOW", "MID", "HIGH" };
+    const char* eqTexts1[]     = { "BASS", "MIDS", "TREBLE" };
 
     juce::Slider* eqSliders2[] = { &low2Slider, &mid2Slider, &high2Slider };
     juce::Label* eqLabels2[]   = { &low2Label,  &mid2Label,  &high2Label };
-    const char* eqTexts2[]     = { "LOW", "MID", "HIGH" };
+    const char* eqTexts2[]     = { "BASS", "MIDS", "TREBLE" };
 
     for (int i = 0; i < 3; ++i)
     {
@@ -88,6 +89,14 @@ MixerPanel::MixerPanel(DJAudioPlayer& p1, DJAudioPlayer& p2, std::atomic<float>&
         styleLabel(*eqLabels2[i], eqTexts2[i], orange.withAlpha(0.88f));
         addAndMakeVisible(*eqSliders2[i]);
         addAndMakeVisible(*eqLabels2[i]);
+    }
+
+    for (auto* button : { &low1KillButton, &mid1KillButton, &high1KillButton,
+                          &low2KillButton, &mid2KillButton, &high2KillButton })
+    {
+        styleMixerButton(*button);
+        button->addListener(this);
+        addAndMakeVisible(*button);
     }
 
     styleMixerButton(resetMixerButton);
@@ -119,6 +128,7 @@ MixerPanel::MixerPanel(DJAudioPlayer& p1, DJAudioPlayer& p2, std::atomic<float>&
     addAndMakeVisible(vuMeter2);
 
     applyCrossfader(0.5);
+    refreshKillButtons();
     masterGain_.store(0.8f);
 }
 
@@ -133,6 +143,12 @@ MixerPanel::~MixerPanel()
     resetMixerButton.removeListener(this);
     resetEq1Button.removeListener(this);
     resetEq2Button.removeListener(this);
+    low1KillButton.removeListener(this);
+    mid1KillButton.removeListener(this);
+    high1KillButton.removeListener(this);
+    low2KillButton.removeListener(this);
+    mid2KillButton.removeListener(this);
+    high2KillButton.removeListener(this);
     curveLinearButton.removeListener(this);
     curveEqPowButton.removeListener(this);
     curveCutButton.removeListener(this);
@@ -213,17 +229,20 @@ void MixerPanel::resized()
     auto rightEq = upperSection;
 
     auto layoutEqColumn = [&](juce::Rectangle<int> eqArea, juce::Slider& low, juce::Slider& mid, juce::Slider& high,
-                              juce::Label& lowLabel, juce::Label& midLabel, juce::Label& highLabel)
+                              juce::Label& lowLabel, juce::Label& midLabel, juce::Label& highLabel,
+                              juce::TextButton& lowKill, juce::TextButton& midKill, juce::TextButton& highKill)
     {
         const int bandGap = 4;
         const int bandHeight = (eqArea.getHeight() - bandGap * 2) / 3;
-        const int knobSize = juce::jmin(eqArea.getWidth(), bandHeight - labelH);
+        const int killH = 16;
+        const int knobSize = juce::jmin(eqArea.getWidth(), bandHeight - labelH - killH);
 
-        auto placeBand = [&](juce::Rectangle<int> bandArea, juce::Slider& slider, juce::Label& label)
+        auto placeBand = [&](juce::Rectangle<int> bandArea, juce::Slider& slider, juce::Label& label, juce::TextButton& killButton)
         {
+            auto killArea = bandArea.removeFromBottom(killH);
+            killButton.setBounds(killArea.reduced(1, 1));
             auto labelArea = bandArea.removeFromBottom(labelH);
             label.setBounds(labelArea);
-            // Centre the rotary knob square in remaining area
             const int sz = juce::jmin(bandArea.getWidth(), bandArea.getHeight(), knobSize);
             const int cx = bandArea.getCentreX() - sz / 2;
             const int cy = bandArea.getCentreY() - sz / 2;
@@ -236,13 +255,15 @@ void MixerPanel::resized()
         eqArea.removeFromTop(bandGap);
         auto highArea = eqArea;
 
-        placeBand(lowArea, low, lowLabel);
-        placeBand(midArea, mid, midLabel);
-        placeBand(highArea, high, highLabel);
+        placeBand(lowArea, low, lowLabel, lowKill);
+        placeBand(midArea, mid, midLabel, midKill);
+        placeBand(highArea, high, highLabel, highKill);
     };
 
-    layoutEqColumn(leftEq, low1Slider, mid1Slider, high1Slider, low1Label, mid1Label, high1Label);
-    layoutEqColumn(rightEq, low2Slider, mid2Slider, high2Slider, low2Label, mid2Label, high2Label);
+    layoutEqColumn(leftEq, low1Slider, mid1Slider, high1Slider, low1Label, mid1Label, high1Label,
+                   low1KillButton, mid1KillButton, high1KillButton);
+    layoutEqColumn(rightEq, low2Slider, mid2Slider, high2Slider, low2Label, mid2Label, high2Label,
+                   low2KillButton, mid2KillButton, high2KillButton);
 
     auto vuLeft = centerLane.removeFromLeft(meterW);
     vuMeter1.setBounds(vuLeft.reduced(1, 8));
@@ -290,12 +311,12 @@ void MixerPanel::sliderValueChanged(juce::Slider* s)
     }
     else if (s == &trim1Slider)   player1_.setTrimGain(s->getValue());
     else if (s == &trim2Slider)   player2_.setTrimGain(s->getValue());
-    else if (s == &low1Slider)    player1_.setEQLow(s->getValue());
-    else if (s == &mid1Slider)    player1_.setEQMid(s->getValue());
-    else if (s == &high1Slider)   player1_.setEQHigh(s->getValue());
-    else if (s == &low2Slider)    player2_.setEQLow(s->getValue());
-    else if (s == &mid2Slider)    player2_.setEQMid(s->getValue());
-    else if (s == &high2Slider)   player2_.setEQHigh(s->getValue());
+    else if (s == &low1Slider)    { player1_.setEQLowKill(false);  player1_.setEQLow(s->getValue());  refreshKillButtons(); }
+    else if (s == &mid1Slider)    { player1_.setEQMidKill(false);  player1_.setEQMid(s->getValue());  refreshKillButtons(); }
+    else if (s == &high1Slider)   { player1_.setEQHighKill(false); player1_.setEQHigh(s->getValue()); refreshKillButtons(); }
+    else if (s == &low2Slider)    { player2_.setEQLowKill(false);  player2_.setEQLow(s->getValue());  refreshKillButtons(); }
+    else if (s == &mid2Slider)    { player2_.setEQMidKill(false);  player2_.setEQMid(s->getValue());  refreshKillButtons(); }
+    else if (s == &high2Slider)   { player2_.setEQHighKill(false); player2_.setEQHigh(s->getValue()); refreshKillButtons(); }
 }
 
 void MixerPanel::buttonClicked(juce::Button* button)
@@ -306,6 +327,12 @@ void MixerPanel::buttonClicked(juce::Button* button)
         resetDeck1EQ();
     else if (button == &resetEq2Button)
         resetDeck2EQ();
+    else if (button == &low1KillButton)  { player1_.setEQLowKill (!player1_.isEQLowKilled());  refreshKillButtons(); }
+    else if (button == &mid1KillButton)  { player1_.setEQMidKill (!player1_.isEQMidKilled());  refreshKillButtons(); }
+    else if (button == &high1KillButton) { player1_.setEQHighKill(!player1_.isEQHighKilled()); refreshKillButtons(); }
+    else if (button == &low2KillButton)  { player2_.setEQLowKill (!player2_.isEQLowKilled());  refreshKillButtons(); }
+    else if (button == &mid2KillButton)  { player2_.setEQMidKill (!player2_.isEQMidKilled());  refreshKillButtons(); }
+    else if (button == &high2KillButton) { player2_.setEQHighKill(!player2_.isEQHighKilled()); refreshKillButtons(); }
     else if (button == &curveLinearButton || button == &curveEqPowButton || button == &curveCutButton)
     {
         if (button == &curveLinearButton)
@@ -331,16 +358,24 @@ void MixerPanel::buttonClicked(juce::Button* button)
 
 void MixerPanel::resetDeck1EQ()
 {
+    player1_.setEQLowKill(false);
+    player1_.setEQMidKill(false);
+    player1_.setEQHighKill(false);
     low1Slider.setValue(0.0, juce::sendNotificationSync);
     mid1Slider.setValue(0.0, juce::sendNotificationSync);
     high1Slider.setValue(0.0, juce::sendNotificationSync);
+    refreshKillButtons();
 }
 
 void MixerPanel::resetDeck2EQ()
 {
+    player2_.setEQLowKill(false);
+    player2_.setEQMidKill(false);
+    player2_.setEQHighKill(false);
     low2Slider.setValue(0.0, juce::sendNotificationSync);
     mid2Slider.setValue(0.0, juce::sendNotificationSync);
     high2Slider.setValue(0.0, juce::sendNotificationSync);
+    refreshKillButtons();
 }
 
 void MixerPanel::resetMixerDefaults()
@@ -382,4 +417,19 @@ void MixerPanel::applyCrossfader(double pos)
     const double masterBoost = juce::jmap(masterSlider.getValue(), 0.0, 1.0, 0.65, 1.45);
     player1_.setCrossfaderGain(juce::jlimit(0.0, 2.0, g1 * masterBoost));
     player2_.setCrossfaderGain(juce::jlimit(0.0, 2.0, g2 * masterBoost));
+}
+
+void MixerPanel::refreshKillButtons()
+{
+    const auto activeA = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.85f);
+    const auto activeB = CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.85f);
+    const auto inactive = CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue);
+
+    low1KillButton.setColour(juce::TextButton::buttonColourId,  player1_.isEQLowKilled()  ? activeA : inactive);
+    mid1KillButton.setColour(juce::TextButton::buttonColourId,  player1_.isEQMidKilled()  ? activeA : inactive);
+    high1KillButton.setColour(juce::TextButton::buttonColourId, player1_.isEQHighKilled() ? activeA : inactive);
+
+    low2KillButton.setColour(juce::TextButton::buttonColourId,  player2_.isEQLowKilled()  ? activeB : inactive);
+    mid2KillButton.setColour(juce::TextButton::buttonColourId,  player2_.isEQMidKilled()  ? activeB : inactive);
+    high2KillButton.setColour(juce::TextButton::buttonColourId, player2_.isEQHighKilled() ? activeB : inactive);
 }

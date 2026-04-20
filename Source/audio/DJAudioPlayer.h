@@ -29,6 +29,7 @@ public:
     void   setPositionRelative(double pos);
 
     double getPositionRelative() const;
+    double getCurrentPositionSeconds() const;
     double getTotalLength() const;
 
     // Loop (M2)
@@ -39,6 +40,10 @@ public:
     void checkAndLoopIfNeeded();
     // Set loop of exactly durationSeconds starting at current position
     void setLoopFromCurrentPosition(double durationSeconds);
+
+    // Whole-track repeat
+    void setTrackLoopEnabled(bool enabled);
+    bool isTrackLoopEnabled() const;
 
     // Cue (M2)
     void   setCuePoint();
@@ -57,6 +62,12 @@ public:
     void setEQLow (double dB);
     void setEQMid (double dB);
     void setEQHigh(double dB);
+    void setEQLowKill (bool enabled);
+    void setEQMidKill (bool enabled);
+    void setEQHighKill(bool enabled);
+    bool isEQLowKilled()  const;
+    bool isEQMidKilled()  const;
+    bool isEQHighKilled() const;
 
     // Level metering (M3)
     float getRMSLevel() const;
@@ -72,6 +83,7 @@ public:
     bool isHighPassEnabled() const;
 
     void setDelayEnabled(bool enabled);
+    bool isDelayEnabled() const;
     void setDelayTime(double seconds);
     void setDelayFeedback(double feedback);   // [0, 0.9]
     void setDelayWetDry(double wet);          // [0, 1]
@@ -104,6 +116,7 @@ private:
     double loopStart_   = 0.0;
     double loopEnd_     = 0.0;
     bool   loopEnabled_ = false;
+    bool   trackLoopEnabled_ = false;
 
     // Cue
     double cuePoint_ = 0.0;
@@ -112,6 +125,9 @@ private:
     double eqLowDb_  = 0.0;
     double eqMidDb_  = 0.0;
     double eqHighDb_ = 0.0;
+    bool   eqLowKill_  = false;
+    bool   eqMidKill_  = false;
+    bool   eqHighKill_ = false;
     double sampleRate_ = 44100.0;
     std::atomic<bool> eqDirty_{ false };
 

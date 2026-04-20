@@ -13,5 +13,9 @@ x64/
 *.exe
 *.dll
 
+# App recordings
+Recordings/*.wav
+!Recordings/.gitkeep
+
 # Mac / Linux junk
 .DS_Store

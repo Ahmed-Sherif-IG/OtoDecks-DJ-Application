@@ -1,5 +1,6 @@
 #include "DeckGUI.h"
 #include "../shared/CustomLookAndFeel.h"
+#include <cmath>
 
 static juce::String fmtTime(double totalSecs)
 {
@@ -63,8 +64,11 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
     loopOutButton.setButtonText("LOOP END");
     clearLoopButton.setButtonText("CLEAR LOOP");
     tapButton.setButtonText("TAP BPM");
+    resetVolumeButton.setButtonText("RESET VOL");
+    resetSpeedButton.setButtonText("RESET");
     lpfButton.setButtonText("LOW CUT");
     hpfButton.setButtonText("HIGH CUT");
+    delayButton.setButtonText("DELAY");
 
     styleDeckButton(playButton, colour.brighter(0.1f));
     styleDeckButton(stopButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
@@ -86,14 +90,19 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
     styleDeckButton(tapButton, colour.withAlpha(0.82f));
     styleDeckButton(lpfButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
     styleDeckButton(hpfButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+    styleDeckButton(delayButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+    styleDeckButton(nudgeDownButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
+    styleDeckButton(nudgeUpButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue));
     styleDeckButton(resetVolumeButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).darker(0.05f));
     styleDeckButton(resetSpeedButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).darker(0.05f));
+    styleDeckButton(tempoRangeButton, colour.withAlpha(0.65f));
+    styleDeckButton(trackLoopButton, CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).darker(0.05f));
 
     for (auto* b : { &playButton, &stopButton, &loadButton, &syncButton,
                      &loopInButton, &loopOutButton, &clearLoopButton,
                      &setCueButton, &goCueButton,
-                     &lpfButton, &hpfButton,
-                     &resetVolumeButton, &resetSpeedButton })
+                     &lpfButton, &hpfButton, &delayButton, &nudgeDownButton, &nudgeUpButton,
+                     &resetVolumeButton, &resetSpeedButton, &tempoRangeButton, &trackLoopButton })
     {
         b->addListener(this);
         addAndMakeVisible(b);
@@ -103,7 +112,8 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
     addAndMakeVisible(tapButton);
 
     volSlider.setRange(0.0, 1.0);    volSlider.setValue(0.5);
-    speedSlider.setRange(0.0, 2.5);  speedSlider.setValue(1.0);
+    speedSlider.setRange(-tempoRangePercent_, tempoRangePercent_);
+    speedSlider.setValue(0.0);
     posSlider.setRange(0.0, 1.0);
 
     volSlider.setColour(juce::Slider::trackColourId, colour.withAlpha(0.95f));
@@ -118,8 +128,8 @@ DeckGUI::DeckGUI(DJAudioPlayer& _player,
     }
 
     volLabel.setText("VOLUME",   juce::dontSendNotification);
-    speedLabel.setText("SPEED",   juce::dontSendNotification);
-    posLabel.setText("POSITION", juce::dontSendNotification);
+    speedLabel.setText("TEMPO",   juce::dontSendNotification);
+    posLabel.setText("SEEK", juce::dontSendNotification);
 
     for (auto* l : { &volLabel, &speedLabel, &posLabel })
     {
@@ -185,8 +195,8 @@ DeckGUI::~DeckGUI()
     for (auto* b : { &playButton, &stopButton, &loadButton, &syncButton,
                      &loopInButton, &loopOutButton, &clearLoopButton,
                      &setCueButton, &goCueButton,
-                     &lpfButton, &hpfButton, &tapButton,
-                     &resetVolumeButton, &resetSpeedButton })
+                     &lpfButton, &hpfButton, &delayButton, &nudgeDownButton, &nudgeUpButton, &tapButton,
+                     &resetVolumeButton, &resetSpeedButton, &tempoRangeButton, &trackLoopButton })
         b->removeListener(this);
 
     for (auto* lb : { &loopBar1_4Button, &loopBar1_2Button, &loopBar1Button,
@@ -262,7 +272,7 @@ void DeckGUI::paint(juce::Graphics& g)
     sectionBounds.removeFromTop(26.0f + 10.0f); // hotcue + gap
 
     // Skip waveform, then effects section
-    const int bottomControlHeight = 130;
+    const int bottomControlHeight = 138;
     const int waveformH = juce::jmax(120, static_cast<int>(sectionBounds.getHeight()) - bottomControlHeight - 10);
     sectionBounds.removeFromTop(static_cast<float>(waveformH) + 10.0f); // waveform + gap
 
@@ -305,13 +315,21 @@ void DeckGUI::resized()
     const int sliderRowH = 28;
     const int sliderGap = 10;
 
-    auto layoutSliderRow = [&](juce::Label& label, juce::Slider& slider, juce::TextButton* resetButton)
+    auto layoutSliderRow = [&](juce::Label& label, juce::Slider& slider,
+                               juce::TextButton* resetButton,
+                               juce::TextButton* rangeButton = nullptr)
     {
         auto row = controlsRow.removeFromTop(sliderRowH);
         label.setBounds(row.removeFromLeft(labelW));
+        if (rangeButton != nullptr)
+        {
+            auto rangeArea = row.removeFromRight(58);
+            rangeButton->setBounds(rangeArea.reduced(0, 2));
+            row.removeFromRight(6);
+        }
         if (resetButton != nullptr)
         {
-            auto resetArea = row.removeFromRight(86);
+            auto resetArea = row.removeFromRight(rangeButton != nullptr ? 58 : 86);
             resetButton->setBounds(resetArea.reduced(0, 2));
             row.removeFromRight(8);
         }
@@ -320,8 +338,8 @@ void DeckGUI::resized()
     };
 
     layoutSliderRow(volLabel, volSlider, &resetVolumeButton);
-    layoutSliderRow(speedLabel, speedSlider, &resetSpeedButton);
-    layoutSliderRow(posLabel, posSlider, nullptr);
+    layoutSliderRow(speedLabel, speedSlider, &resetSpeedButton, &tempoRangeButton);
+    layoutSliderRow(posLabel, posSlider, &trackLoopButton);
 
     area.removeFromTop(gap);
 
@@ -340,7 +358,7 @@ void DeckGUI::resized()
 
     area.removeFromTop(gap);
 
-    const int bottomControlHeight = 130;
+    const int bottomControlHeight = 138;
     const int waveformHeight = juce::jmax(120, area.getHeight() - bottomControlHeight - gap);
     waveformDisplay.setBounds(area.removeFromTop(waveformHeight));
 
@@ -378,9 +396,12 @@ void DeckGUI::resized()
     bottomControls.removeFromTop(6);
 
     auto filterRow = bottomControls.removeFromTop(24);
-    const int filterButtonW = (filterRow.getWidth() - buttonGap) / 2;
+    const int filterButtonW = (filterRow.getWidth() - buttonGap * 4) / 5;
     lpfButton.setBounds(filterRow.removeFromLeft(filterButtonW)); filterRow.removeFromLeft(buttonGap);
-    hpfButton.setBounds(filterRow.removeFromLeft(filterButtonW));
+    hpfButton.setBounds(filterRow.removeFromLeft(filterButtonW)); filterRow.removeFromLeft(buttonGap);
+    delayButton.setBounds(filterRow.removeFromLeft(filterButtonW)); filterRow.removeFromLeft(buttonGap);
+    nudgeDownButton.setBounds(filterRow.removeFromLeft(filterButtonW)); filterRow.removeFromLeft(buttonGap);
+    nudgeUpButton.setBounds(filterRow.removeFromLeft(filterButtonW));
 }
 
 //==============================================================================
@@ -408,15 +429,13 @@ void DeckGUI::buttonClicked(juce::Button* b)
             {
                 double ratio = otherBPM / myBPM;
                 ratio = juce::jlimit(0.5, 2.0, ratio);
-                const double newSpeed = speedSlider.getValue() * ratio;
-                speedSlider.setValue(newSpeed);
-                player.setSpeed(newSpeed);
+                setSpeedRatio(getSpeed() * ratio);
+                alignBeatPhaseToOtherDeck();
             }
             else
             {
                 const float otherSpeed = getOtherDeckSpeed();
-                speedSlider.setValue(otherSpeed);
-                player.setSpeed(otherSpeed);
+                setSpeedRatio(otherSpeed);
             }
         }
     }
@@ -445,8 +464,19 @@ void DeckGUI::buttonClicked(juce::Button* b)
     else if (b == &tapButton)         recordTap();
     else if (b == &resetVolumeButton) resetVolumeToDefault();
     else if (b == &resetSpeedButton)  resetSpeedToDefault();
+    else if (b == &tempoRangeButton)  cycleTempoRange();
+    else if (b == &trackLoopButton)   player.setTrackLoopEnabled(!player.isTrackLoopEnabled());
     else if (b == &lpfButton)         player.setLowPassEnabled(!player.isLowPassEnabled());
     else if (b == &hpfButton)         player.setHighPassEnabled(!player.isHighPassEnabled());
+    else if (b == &delayButton)
+    {
+        player.setDelayTime(0.28);
+        player.setDelayFeedback(0.35);
+        player.setDelayWetDry(0.28);
+        player.setDelayEnabled(!player.isDelayEnabled());
+    }
+    else if (b == &nudgeDownButton)   togglePitchNudge(-1);
+    else if (b == &nudgeUpButton)     togglePitchNudge(1);
     else if (b == &clearHotcuesButton) clearAllHotcues();
 
     // Hotcue pads (standalone check — not part of the if-else chain)
@@ -470,7 +500,7 @@ void DeckGUI::buttonClicked(juce::Button* b)
 void DeckGUI::sliderValueChanged(juce::Slider* s)
 {
     if      (s == &volSlider)   player.setGain(s->getValue());
-    else if (s == &speedSlider) player.setSpeed(s->getValue());
+    else if (s == &speedSlider) applySpeedSliderToPlayer();
     else if (s == &posSlider)   player.setPositionRelative(s->getValue());
 }
 
@@ -508,14 +538,24 @@ void DeckGUI::timerCallback()
 
     const double elapsed = pos * len;
     timeLabel.setText(fmtTime(elapsed) + " / " + fmtTime(len), juce::dontSendNotification);
+    speedLabel.setText(formatTempoPercent(), juce::dontSendNotification);
 
     juce::Colour stateColour = CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue);
     juce::String stateText = "READY";
+
+    const double remaining = len - elapsed;
 
     if (!state.isLoaded)
     {
         stateText = "EMPTY";
         stateColour = CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).withAlpha(0.8f);
+    }
+    else if (state.isPlaying && remaining <= 30.0 && len > 0.0)
+    {
+        stateText = "ENDING";
+        stateColour = remaining <= 10.0
+            ? CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue)
+            : CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue);
     }
     else if (state.isPlaying)
     {
@@ -532,6 +572,10 @@ void DeckGUI::timerCallback()
     stateLabel.setColour(juce::Label::textColourId, stateColour);
     stateLabel.setColour(juce::Label::backgroundColourId,
                          CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).interpolatedWith(stateColour.withAlpha(0.18f), 0.35f));
+    timeLabel.setColour(juce::Label::textColourId,
+                        (state.isLoaded && remaining <= 30.0 && len > 0.0)
+                            ? stateColour
+                            : CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
 
     playButton.setButtonText(state.isPlaying ? "PLAYING" : "PLAY");
     playButton.setToggleState(state.isPlaying, juce::dontSendNotification);
@@ -548,6 +592,16 @@ void DeckGUI::timerCallback()
     hpfButton.setColour(juce::TextButton::buttonColourId,
                         player.isHighPassEnabled() ? deckColour_.withAlpha(0.85f)
                                                    : CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
+    delayButton.setToggleState(player.isDelayEnabled(), juce::dontSendNotification);
+    delayButton.setColour(juce::TextButton::buttonColourId,
+                          player.isDelayEnabled() ? deckColour_.withAlpha(0.85f)
+                                                  : CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
+    refreshNudgeButtons();
+
+    trackLoopButton.setToggleState(player.isTrackLoopEnabled(), juce::dontSendNotification);
+    trackLoopButton.setColour(juce::TextButton::buttonColourId,
+                              player.isTrackLoopEnabled() ? deckColour_.withAlpha(0.85f)
+                                                           : CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
 }
 
 juce::Colour DeckGUI::getDeckGlowColour() const
@@ -592,7 +646,7 @@ void DeckGUI::setNowPlaying(const juce::String& info)
 
 float DeckGUI::getSpeed() const
 {
-    return static_cast<float>(speedSlider.getValue());
+    return static_cast<float>(speedSliderValueToRatio());
 }
 
 void DeckGUI::resetVolumeToDefault()
@@ -602,7 +656,115 @@ void DeckGUI::resetVolumeToDefault()
 
 void DeckGUI::resetSpeedToDefault()
 {
-    speedSlider.setValue(1.0, juce::sendNotificationSync);
+    pitchNudgeDirection_ = 0;
+    refreshNudgeButtons();
+    speedSlider.setValue(0.0, juce::sendNotificationSync);
+}
+
+void DeckGUI::cycleTempoRange()
+{
+    if (tempoRangePercent_ < 10.0)
+        setTempoRange(16.0);
+    else if (tempoRangePercent_ < 20.0)
+        setTempoRange(50.0);
+    else
+        setTempoRange(8.0);
+}
+
+void DeckGUI::setTempoRange(double rangePercent)
+{
+    const double currentRatio = getSpeed();
+    tempoRangePercent_ = rangePercent;
+    speedSlider.setRange(-tempoRangePercent_, tempoRangePercent_, 0.01);
+    tempoRangeButton.setButtonText("RNG " + juce::String(static_cast<int>(tempoRangePercent_)) + "%");
+    setSpeedRatio(currentRatio);
+}
+
+void DeckGUI::setSpeedRatio(double ratio)
+{
+    ratio = juce::jlimit(0.5, 1.5, ratio);
+    pitchNudgeDirection_ = 0;
+    refreshNudgeButtons();
+    speedSlider.setValue(speedRatioToSliderValue(ratio), juce::sendNotificationSync);
+}
+
+void DeckGUI::applySpeedSliderToPlayer()
+{
+    double ratio = speedSliderValueToRatio();
+
+    if (pitchNudgeDirection_ < 0)
+        ratio *= 0.96;
+    else if (pitchNudgeDirection_ > 0)
+        ratio *= 1.04;
+
+    player.setSpeed(juce::jlimit(0.5, 1.5, ratio));
+}
+
+void DeckGUI::alignBeatPhaseToOtherDeck()
+{
+    if (!getOtherDeckPositionSeconds)
+        return;
+
+    const double bpm = player.getBPM();
+    const double otherBpm = getOtherDeckBPM ? getOtherDeckBPM() : 0.0;
+    if (bpm <= 0.0 || otherBpm <= 0.0)
+        return;
+
+    const double secondsPerBeat = 60.0 / otherBpm;
+    const double current = player.getCurrentPositionSeconds();
+    const double other = getOtherDeckPositionSeconds();
+    const double length = player.getTotalLength();
+    if (secondsPerBeat <= 0.0 || length <= 0.0)
+        return;
+
+    const double myPhase = std::fmod(current, secondsPerBeat);
+    const double otherPhase = std::fmod(other, secondsPerBeat);
+    double offset = otherPhase - myPhase;
+    if (offset < 0.0)
+        offset += secondsPerBeat;
+
+    if (offset > secondsPerBeat * 0.5)
+        offset -= secondsPerBeat;
+
+    const double target = juce::jlimit(0.0, length, current + offset);
+    player.setPosition(target);
+}
+
+void DeckGUI::togglePitchNudge(int direction)
+{
+    pitchNudgeDirection_ = (pitchNudgeDirection_ == direction) ? 0 : direction;
+    applySpeedSliderToPlayer();
+    refreshNudgeButtons();
+}
+
+void DeckGUI::refreshNudgeButtons()
+{
+    const auto active = deckColour_.withAlpha(0.85f);
+    const auto inactive = CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue);
+
+    nudgeDownButton.setToggleState(pitchNudgeDirection_ < 0, juce::dontSendNotification);
+    nudgeUpButton.setToggleState(pitchNudgeDirection_ > 0, juce::dontSendNotification);
+    nudgeDownButton.setColour(juce::TextButton::buttonColourId,
+                              pitchNudgeDirection_ < 0 ? active : inactive);
+    nudgeUpButton.setColour(juce::TextButton::buttonColourId,
+                            pitchNudgeDirection_ > 0 ? active : inactive);
+}
+
+double DeckGUI::speedSliderValueToRatio() const
+{
+    return juce::jlimit(0.5, 1.5, 1.0 + speedSlider.getValue() / 100.0);
+}
+
+double DeckGUI::speedRatioToSliderValue(double ratio) const
+{
+    return juce::jlimit(-tempoRangePercent_, tempoRangePercent_, (ratio - 1.0) * 100.0);
+}
+
+juce::String DeckGUI::formatTempoPercent() const
+{
+    const double percent = speedSlider.getValue();
+    const juce::String sign = percent >= 0.0 ? "+" : "";
+    return "TEMPO " + sign + juce::String(percent, 1) + "%";
 }
 
 void DeckGUI::clearAllHotcues()

@@ -192,6 +192,11 @@ double DJAudioPlayer::getPositionRelative() const
     return (len > 0.0) ? transportSource.getCurrentPosition() / len : 0.0;
 }
 
+double DJAudioPlayer::getCurrentPositionSeconds() const
+{
+    return transportSource.getCurrentPosition();
+}
+
 double DJAudioPlayer::getTotalLength() const
 {
     return transportSource.getLengthInSeconds();
@@ -218,6 +223,16 @@ void DJAudioPlayer::clearLoop()
 }
 
 bool DJAudioPlayer::isLoopEnabled() const { return loopEnabled_; }
+
+void DJAudioPlayer::setTrackLoopEnabled(bool enabled)
+{
+    trackLoopEnabled_ = enabled;
+}
+
+bool DJAudioPlayer::isTrackLoopEnabled() const
+{
+    return trackLoopEnabled_;
+}
 
 //==============================================================================
 void DJAudioPlayer::setHotcue(int index)
@@ -264,9 +279,25 @@ void DJAudioPlayer::setLoopFromCurrentPosition(double durationSeconds)
 
 void DJAudioPlayer::checkAndLoopIfNeeded()
 {
-    if (!loopEnabled_ || !isLoaded_) return;
-    if (transportSource.getCurrentPosition() >= loopEnd_)
+    if (!isLoaded_) return;
+
+    if (loopEnabled_ && transportSource.getCurrentPosition() >= loopEnd_)
+    {
         transportSource.setPosition(loopStart_);
+        return;
+    }
+
+    if (trackLoopEnabled_)
+    {
+        const double length = transportSource.getLengthInSeconds();
+        if (length > 0.0
+            && transportSource.isPlaying()
+            && transportSource.getCurrentPosition() >= length - 0.05)
+        {
+            transportSource.setPosition(0.0);
+            transportSource.start();
+        }
+    }
 }
 
 //==============================================================================
@@ -278,16 +309,25 @@ double DJAudioPlayer::getCuePoint() const { return cuePoint_; }
 void DJAudioPlayer::setEQLow (double dB) { eqLowDb_  = juce::jlimit(-12.0,12.0,dB); eqDirty_.store(true); }
 void DJAudioPlayer::setEQMid (double dB) { eqMidDb_  = juce::jlimit(-12.0,12.0,dB); eqDirty_.store(true); }
 void DJAudioPlayer::setEQHigh(double dB) { eqHighDb_ = juce::jlimit(-12.0,12.0,dB); eqDirty_.store(true); }
+void DJAudioPlayer::setEQLowKill (bool enabled) { eqLowKill_  = enabled; eqDirty_.store(true); }
+void DJAudioPlayer::setEQMidKill (bool enabled) { eqMidKill_  = enabled; eqDirty_.store(true); }
+void DJAudioPlayer::setEQHighKill(bool enabled) { eqHighKill_ = enabled; eqDirty_.store(true); }
+bool DJAudioPlayer::isEQLowKilled()  const { return eqLowKill_;  }
+bool DJAudioPlayer::isEQMidKilled()  const { return eqMidKill_;  }
+bool DJAudioPlayer::isEQHighKilled() const { return eqHighKill_; }
 
 void DJAudioPlayer::updateEQCoefficients()
 {
     if (sampleRate_ <= 0.0) return;
-    const auto lowGain  = static_cast<float>(dbToLinear(eqLowDb_));
-    const auto midGain  = static_cast<float>(dbToLinear(eqMidDb_ * 1.15));
-    const auto highGain = static_cast<float>(dbToLinear(eqHighDb_));
+    const double lowDb  = eqLowKill_  ? -48.0 : eqLowDb_;
+    const double midDb  = eqMidKill_  ? -48.0 : eqMidDb_;
+    const double highDb = eqHighKill_ ? -48.0 : eqHighDb_;
+    const auto lowGain  = static_cast<float>(dbToLinear(lowDb));
+    const auto midGain  = static_cast<float>(dbToLinear(midDb * 1.15));
+    const auto highGain = static_cast<float>(dbToLinear(highDb));
 
     auto lowCut  = juce::IIRCoefficients::makeLowShelf (sampleRate_, 180.0, 0.75f,
-                    static_cast<float>(dbToLinear(eqLowDb_ * 1.6)));
+                    static_cast<float>(dbToLinear(lowDb * 1.6)));
     auto lowBody = juce::IIRCoefficients::makePeakFilter(sampleRate_, 105.0, 0.95f,
                     lowGain);
     auto mc = juce::IIRCoefficients::makePeakFilter(sampleRate_, 950.0, 0.8f,
@@ -324,6 +364,7 @@ void DJAudioPlayer::updateFilterCoefficients()
 }
 
 void DJAudioPlayer::setDelayEnabled (bool e)        { delayEnabled_  = e;   }
+bool DJAudioPlayer::isDelayEnabled() const          { return delayEnabled_;  }
 void DJAudioPlayer::setDelayTime    (double secs)   { delayTime_     = juce::jlimit(0.01, 2.0, secs); }
 void DJAudioPlayer::setDelayFeedback(double fb)     { delayFeedback_ = juce::jlimit(0.0, 0.9, fb);   }
 void DJAudioPlayer::setDelayWetDry  (double wet)    { delayWet_      = juce::jlimit(0.0, 1.0, wet);   }

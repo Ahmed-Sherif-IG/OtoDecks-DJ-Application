@@ -91,9 +91,15 @@ private:
     juce::TextButton   addTracksButton{ "Add Tracks" };
     juce::Label        trackCountLabel;
     juce::TextEditor   searchBox;    // M4: filter tracks
+    juce::TextEditor   bpmMinBox;
+    juce::TextEditor   bpmMaxBox;
+    juce::TextEditor   durationMaxBox;
 
     std::vector<Track> tracks;
     juce::String       searchText_;
+    juce::String       bpmMinText_;
+    juce::String       bpmMaxText_;
+    juce::String       durationMaxText_;
 
     // Sort state
     int  sortColumnId_  = ColTitle;

@@ -43,6 +43,42 @@ void WaveformDisplay::paint(juce::Graphics& g)
         return;
     }
 
+    juce::Rectangle<float> overview;
+    if (inner.getHeight() > 88.0f)
+    {
+        overview = inner.removeFromTop(24.0f);
+        inner.removeFromTop(8.0f);
+
+        g.setColour(juce::Colour(0xFF02050A).withAlpha(0.78f));
+        g.fillRoundedRectangle(overview, 6.0f);
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.72f));
+        g.drawRoundedRectangle(overview, 6.0f, 1.0f);
+
+        auto overviewWave = overview.reduced(5.0f, 4.0f);
+        if (loopActive_ && loopEndRel_ > loopStartRel_)
+        {
+            auto loopRect = juce::Rectangle<float>(
+                overviewWave.getX() + static_cast<float>(loopStartRel_ * overviewWave.getWidth()), overviewWave.getY(),
+                static_cast<float>((loopEndRel_ - loopStartRel_) * overviewWave.getWidth()), overviewWave.getHeight());
+            g.setColour(waveformColour.withAlpha(0.16f));
+            g.fillRoundedRectangle(loopRect, 4.0f);
+        }
+
+        g.setColour(waveformColour.withAlpha(0.48f));
+        audioThumb.drawChannel(g, overviewWave.toNearestInt(), 0.0, audioThumb.getTotalLength(), 0, 0.72f);
+
+        if (cueMarker_ > 0.0)
+        {
+            const float cx = overviewWave.getX() + static_cast<float>(cueMarker_ * overviewWave.getWidth());
+            g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.9f));
+            g.drawVerticalLine(static_cast<int>(cx), overviewWave.getY(), overviewWave.getBottom());
+        }
+
+        const float opx = overviewWave.getX() + static_cast<float>(position * overviewWave.getWidth());
+        g.setColour(juce::Colours::white.withAlpha(0.92f));
+        g.drawLine(opx, overview.getY() + 2.0f, opx, overview.getBottom() - 2.0f, 1.8f);
+    }
+
     for (int i = 1; i < 4; ++i)
     {
         const float y = inner.getY() + inner.getHeight() * (static_cast<float>(i) / 4.0f);

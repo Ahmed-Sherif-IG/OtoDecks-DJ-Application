@@ -48,6 +48,23 @@ PlaylistComponent::PlaylistComponent()
     searchBox.setFont(juce::Font(juce::FontOptions(13.0f)));
     addAndMakeVisible(searchBox);
 
+    auto setupFilterBox = [this](juce::TextEditor& editor, const juce::String& placeholder)
+    {
+        editor.setTextToShowWhenEmpty(placeholder, CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
+        editor.addListener(this);
+        editor.setInputRestrictions(6, "0123456789.");
+        editor.setColour(juce::TextEditor::backgroundColourId, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
+        editor.setColour(juce::TextEditor::textColourId,       CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
+        editor.setColour(juce::TextEditor::outlineColourId,    CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue));
+        editor.setColour(juce::TextEditor::focusedOutlineColourId, CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue));
+        editor.setFont(juce::Font(juce::FontOptions(12.0f)));
+        addAndMakeVisible(editor);
+    };
+
+    setupFilterBox(bpmMinBox, "BPM min");
+    setupFilterBox(bpmMaxBox, "BPM max");
+    setupFilterBox(durationMaxBox, "Max min");
+
     loadLibrary();
 }
 
@@ -87,7 +104,13 @@ void PlaylistComponent::resized()
 
     addTracksButton.setBounds(topRow.removeFromLeft(148));
     topRow.removeFromLeft(10);
-    searchBox.setBounds(topRow.removeFromLeft(320));
+    searchBox.setBounds(topRow.removeFromLeft(310));
+    topRow.removeFromLeft(8);
+    bpmMinBox.setBounds(topRow.removeFromLeft(72));
+    topRow.removeFromLeft(6);
+    bpmMaxBox.setBounds(topRow.removeFromLeft(72));
+    topRow.removeFromLeft(6);
+    durationMaxBox.setBounds(topRow.removeFromLeft(76));
     topRow.removeFromLeft(10);
     trackCountLabel.setBounds(topRow);
 
@@ -105,16 +128,28 @@ std::vector<int> PlaylistComponent::getFilteredIndices() const
 {
     std::vector<int> indices;
     juce::String query = searchText_.toLowerCase().trim();
+    const double bpmMin = bpmMinText_.trim().isNotEmpty() ? bpmMinText_.getDoubleValue() : 0.0;
+    const double bpmMax = bpmMaxText_.trim().isNotEmpty() ? bpmMaxText_.getDoubleValue() : 0.0;
+    const double maxDurationSeconds = durationMaxText_.trim().isNotEmpty()
+        ? durationMaxText_.getDoubleValue() * 60.0
+        : 0.0;
 
     for (int i = 0; i < static_cast<int>(tracks.size()); ++i)
     {
-        if (query.isEmpty()
-            || tracks[i].title.toLowerCase().contains(query)
-            || tracks[i].artist.toLowerCase().contains(query)
-            || juce::String(tracks[i].bpm, 1).contains(query))
-        {
+        const auto& track = tracks[static_cast<size_t>(i)];
+        const bool textMatches = query.isEmpty()
+            || track.title.toLowerCase().contains(query)
+            || track.artist.toLowerCase().contains(query)
+            || juce::String(track.bpm, 1).contains(query);
+
+        const bool bpmMatches = (bpmMin <= 0.0 || track.bpm >= bpmMin)
+                             && (bpmMax <= 0.0 || track.bpm <= bpmMax)
+                             && ((bpmMin <= 0.0 && bpmMax <= 0.0) || track.bpm > 0.0);
+        const bool durationMatches = maxDurationSeconds <= 0.0
+                                  || (track.durationSeconds > 0.0 && track.durationSeconds <= maxDurationSeconds);
+
+        if (textMatches && bpmMatches && durationMatches)
             indices.push_back(i);
-        }
     }
     return indices;
 }
@@ -338,9 +373,14 @@ void PlaylistComponent::textEditorTextChanged(juce::TextEditor& editor)
     if (&editor == &searchBox)
     {
         searchText_ = editor.getText();
-        tableComponent.updateContent();
-        tableComponent.repaint();
     }
+    else if (&editor == &bpmMinBox)     bpmMinText_ = editor.getText();
+    else if (&editor == &bpmMaxBox)     bpmMaxText_ = editor.getText();
+    else if (&editor == &durationMaxBox) durationMaxText_ = editor.getText();
+
+    tableComponent.updateContent();
+    tableComponent.repaint();
+    updateTrackCountLabel();
 }
 
 //==============================================================================
@@ -574,6 +614,10 @@ PlaylistComponent::SortKey PlaylistComponent::buildSortKey(const Track& track, i
 
 void PlaylistComponent::updateTrackCountLabel()
 {
-    trackCountLabel.setText("Tracks: " + juce::String(static_cast<int>(tracks.size())),
-                            juce::dontSendNotification);
+    const int total = static_cast<int>(tracks.size());
+    const int visible = static_cast<int>(getFilteredIndices().size());
+    const juce::String text = visible == total
+        ? "Tracks: " + juce::String(total)
+        : "Showing: " + juce::String(visible) + " / " + juce::String(total);
+    trackCountLabel.setText(text, juce::dontSendNotification);
 }
