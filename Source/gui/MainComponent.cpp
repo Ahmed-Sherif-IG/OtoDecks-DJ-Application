@@ -146,31 +146,48 @@ void MainComponent::releaseResources()
 void MainComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
-    juce::ColourGradient background(juce::Colour(0xFF040710), bounds.getTopLeft(),
-                                    juce::Colour(0xFF08101C), bounds.getBottomLeft(), false);
+    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).brighter(0.03f),
+                                    bounds.getTopLeft(),
+                                    CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).darker(0.22f),
+                                    bounds.getBottomLeft(), false);
     g.setGradientFill(background);
     g.fillAll();
 
-    // Deck A (blue) ambient glow
-    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.13f));
-    g.fillEllipse(-140.0f, -90.0f, 460.0f, 280.0f);
-    // Deck B (orange) ambient glow
-    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.11f));
-    g.fillEllipse(static_cast<float>(getWidth() - 300), -60.0f, 420.0f, 260.0f);
-    // Subtle separator lines
-    g.setColour(juce::Colours::white.withAlpha(0.018f));
-    g.drawHorizontalLine(82, 20.0f, static_cast<float>(getWidth() - 20));
-    g.drawHorizontalLine(static_cast<int>(getHeight() * 0.66f), 20.0f, static_cast<float>(getWidth() - 20));
+    auto canvas = bounds.reduced(10.0f, 10.0f);
+    if (deckGUI1 != nullptr && mixerPanel != nullptr && deckGUI2 != nullptr)
+    {
+        auto performanceSurface = deckGUI1->getBounds().getUnion(mixerPanel->getBounds()).getUnion(deckGUI2->getBounds())
+            .expanded(8, 8).toFloat();
+        juce::ColourGradient deckWash(juce::Colours::white.withAlpha(0.018f), performanceSurface.getTopLeft(),
+                                      juce::Colours::transparentWhite, performanceSurface.getBottomLeft(), false);
+        g.setGradientFill(deckWash);
+        g.fillRoundedRectangle(performanceSurface, 18.0f);
+
+        g.setColour(juce::Colours::black.withAlpha(0.14f));
+        g.drawRoundedRectangle(performanceSurface, 18.0f, 0.9f);
+        g.setColour(juce::Colours::white.withAlpha(0.024f));
+        g.drawRoundedRectangle(performanceSurface.reduced(0.8f), 17.2f, 0.6f);
+    }
+
+    auto librarySurface = playlistComponent.getBounds().expanded(6, 6).toFloat();
+    juce::ColourGradient libraryWash(juce::Colours::white.withAlpha(0.014f), librarySurface.getTopLeft(),
+                                     juce::Colours::transparentWhite, librarySurface.getBottomLeft(), false);
+    g.setGradientFill(libraryWash);
+    g.fillRoundedRectangle(librarySurface, 16.0f);
+
+    g.setColour(juce::Colours::white.withAlpha(0.015f));
+    g.drawHorizontalLine(static_cast<int>(canvas.getY() + 78.0f), canvas.getX() + 10.0f, canvas.getRight() - 10.0f);
 }
 
 void MainComponent::resized()
 {
     auto area = getLocalBounds().reduced(16, 14);
-    const int sectionGap = 14;
-    const int deckAreaH = static_cast<int>(area.getHeight() * 0.73f);
+    const bool compact = getWidth() < 1380 || getHeight() < 760;
+    const int sectionGap = compact ? 10 : 14;
+    const int deckAreaH = static_cast<int>(area.getHeight() * (compact ? 0.70f : 0.72f));
     auto deckArea = area.removeFromTop(deckAreaH);
 
-    const int mixerW = juce::jlimit(196, 232, deckArea.getWidth() / 5);
+    const int mixerW = juce::jlimit(compact ? 188 : 196, compact ? 224 : 232, deckArea.getWidth() / 5);
     const int deckW  = (deckArea.getWidth() - mixerW - sectionGap * 2) / 2;
 
     if (deckGUI1)   deckGUI1->setBounds(deckArea.removeFromLeft(deckW));
@@ -180,18 +197,22 @@ void MainComponent::resized()
     deckArea.removeFromLeft(sectionGap);
     if (deckGUI2)   deckGUI2->setBounds(deckArea);
 
-    const int recordW = 72;
-    const int statusW = 72;
-    const int recordGap = 8;
-    auto recordArea = juce::Rectangle<int>(mixerBounds.getCentreX() - (recordW + statusW + recordGap) / 2,
-                                           mixerBounds.getBottom() - 50,
-                                           recordW + statusW + recordGap,
-                                           26);
-    recordButton.setBounds(recordArea.removeFromLeft(recordW));
-    recordArea.removeFromLeft(recordGap);
-    recordStatusLabel.setBounds(recordArea.removeFromLeft(statusW));
+    juce::Rectangle<int> recordArea;
+    if (mixerPanel)
+        recordArea = mixerPanel->getRecordSlotBounds().translated(mixerBounds.getX(), mixerBounds.getY());
+    else
+        recordArea = juce::Rectangle<int>(mixerBounds.getCentreX() - 76, mixerBounds.getBottom() - 32, 152, 24);
 
-    area.removeFromTop(12);
+    const int recordGap = compact ? 6 : 8;
+    const int recordW = compact ? 66 : 72;
+    const int statusW = juce::jmax(44, juce::jmin(compact ? 58 : 72,
+                                                  recordArea.getWidth() - recordW - recordGap));
+    auto contentArea = recordArea.withSizeKeepingCentre(recordW + recordGap + statusW, recordArea.getHeight());
+    recordButton.setBounds(contentArea.removeFromLeft(recordW));
+    contentArea.removeFromLeft(recordGap);
+    recordStatusLabel.setBounds(contentArea.removeFromLeft(statusW));
+
+    area.removeFromTop(compact ? 10 : 12);
     playlistComponent.setBounds(area);
 }
 
@@ -302,13 +323,13 @@ void MainComponent::stopRecording()
 void MainComponent::updateRecordingUI()
 {
     const bool recording = activeWriter_.load() != nullptr;
+    const auto red = CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue);
     recordButton.setButtonText(recording ? "STOP" : "REC");
-    recordButton.setColour(juce::TextButton::buttonColourId,
-                           recording ? CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue)
-                                     : CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).withAlpha(0.72f));
+    recordButton.setToggleState(recording, juce::dontSendNotification);
 
     if (!recording)
     {
+        recordButton.setColour(juce::TextButton::buttonColourId, red.withAlpha(0.72f));
         recordStatusLabel.setText("READY", juce::dontSendNotification);
         recordStatusLabel.setColour(juce::Label::textColourId,
                                     CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
@@ -319,10 +340,15 @@ void MainComponent::updateRecordingUI()
     const int totalSeconds = static_cast<int>(elapsedMs / 1000);
     const int minutes = totalSeconds / 60;
     const int seconds = totalSeconds % 60;
+    const bool flashOn = ((elapsedMs / 500) % 2) == 0;
+    recordButton.setColour(juce::TextButton::buttonColourId,
+                           flashOn ? red.brighter(0.12f)
+                                   : red.withAlpha(0.84f));
     recordStatusLabel.setText("REC " + juce::String(minutes) + ":" + juce::String(seconds).paddedLeft('0', 2),
                               juce::dontSendNotification);
     recordStatusLabel.setColour(juce::Label::textColourId,
-                                CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).brighter(0.2f));
+                                flashOn ? red.brighter(0.25f)
+                                        : red.withAlpha(0.86f));
 }
 
 void MainComponent::logTrackHistory(int deckNumber, const juce::File& file)

@@ -45,13 +45,14 @@ public:
 
     void resized() override
     {
-        auto area        = getLocalBounds().reduced(4, 3);
-        int  buttonWidth = (area.getWidth() - 12) / 3;
+        auto area = getLocalBounds().reduced(3, 3);
+        const int gap = 5;
+        const int buttonWidth = (area.getWidth() - gap * 2) / 3;
 
         deck1Button.setBounds(area.removeFromLeft(buttonWidth));
-        area.removeFromLeft(6);
+        area.removeFromLeft(gap);
         deck2Button.setBounds(area.removeFromLeft(buttonWidth));
-        area.removeFromLeft(6);
+        area.removeFromLeft(gap);
         removeButton.setBounds(area.removeFromLeft(buttonWidth));
     }
 

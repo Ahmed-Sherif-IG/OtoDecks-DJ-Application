@@ -158,6 +158,9 @@ MixerPanel::~MixerPanel()
 void MixerPanel::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
+    const auto blue = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue);
+    const auto orange = CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue);
+    const auto green = CustomLookAndFeel::colour(CustomLookAndFeel::accentGreenValue);
 
     juce::DropShadow shadow(juce::Colours::black.withAlpha(0.40f), 14, { 0, 8 });
     shadow.drawForRectangle(g, bounds.toNearestInt());
@@ -171,24 +174,122 @@ void MixerPanel::paint(juce::Graphics& g)
     g.fillRoundedRectangle(bounds.reduced(1.0f), 18.0f);
 
     auto inner = bounds.reduced(2.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.04f));
-    g.fillRoundedRectangle(inner.removeFromTop(70.0f), 18.0f);
+    juce::ColourGradient surface(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.05f),
+                                 inner.getTopLeft(),
+                                 CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).darker(0.04f),
+                                 inner.getBottomLeft(),
+                                 false);
+    g.setGradientFill(surface);
+    g.fillRoundedRectangle(inner, 16.0f);
+
+    juce::ColourGradient gloss(juce::Colours::white.withAlpha(0.035f), inner.getTopLeft(),
+                               juce::Colours::transparentBlack, inner.getCentre(), false);
+    g.setGradientFill(gloss);
+    g.fillRoundedRectangle(inner, 16.0f);
 
     g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
     g.drawRoundedRectangle(bounds.reduced(1.0f), 18.0f, 1.2f);
 
-    const auto blue = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.35f);
-    const auto orange = CustomLookAndFeel::colour(CustomLookAndFeel::accentOrangeValue).withAlpha(0.35f);
-    g.setColour(blue);
-    g.fillRoundedRectangle(bounds.removeFromLeft(7.0f).reduced(1.0f), 4.0f);
-    g.setColour(orange);
-    g.fillRoundedRectangle(bounds.removeFromRight(7.0f).reduced(1.0f), 4.0f);
+    auto leftChannel = trim1Slider.getBounds()
+        .getUnion(low1Slider.getBounds())
+        .getUnion(mid1Slider.getBounds())
+        .getUnion(high1Slider.getBounds())
+        .getUnion(low1KillButton.getBounds())
+        .getUnion(high1KillButton.getBounds())
+        .expanded(8, 10).toFloat();
+
+    auto rightChannel = trim2Slider.getBounds()
+        .getUnion(low2Slider.getBounds())
+        .getUnion(mid2Slider.getBounds())
+        .getUnion(high2Slider.getBounds())
+        .getUnion(low2KillButton.getBounds())
+        .getUnion(high2KillButton.getBounds())
+        .expanded(8, 10).toFloat();
+
+    auto centerBay = vuMeter1.getBounds()
+        .getUnion(masterSlider.getBounds())
+        .getUnion(vuMeter2.getBounds())
+        .getUnion(crossfader.getBounds())
+        .getUnion(curveLinearButton.getBounds())
+        .getUnion(curveCutButton.getBounds())
+        .getUnion(recordSlotBounds_)
+        .expanded(8, 10).toFloat();
+
+    auto resetBay = resetEq1Button.getBounds()
+        .getUnion(resetMixerButton.getBounds())
+        .getUnion(resetEq2Button.getBounds())
+        .expanded(4, 4).toFloat();
+
+    auto consoleSurface = leftChannel.getUnion(centerBay).getUnion(rightChannel)
+                                     .expanded(4.0f, 2.0f);
+    auto drawSoftGroove = [&](juce::Rectangle<float> area, float alpha, float radius)
+    {
+        if (area.isEmpty())
+            return;
+
+        g.setColour(juce::Colours::black.withAlpha(alpha));
+        g.drawRoundedRectangle(area, radius, 0.9f);
+        g.setColour(juce::Colours::white.withAlpha(alpha * 0.32f));
+        g.drawRoundedRectangle(area.reduced(0.7f), juce::jmax(2.0f, radius - 0.7f), 0.6f);
+    };
+
+    auto drawGuide = [&](float x, float y1, float y2, juce::Colour tint, float alpha)
+    {
+        g.setColour(tint.withAlpha(alpha));
+        g.drawLine(x, y1, x, y2, 1.0f);
+    };
+
+    drawSoftGroove(consoleSurface, 0.08f, 12.0f);
+
+    const float dividerTop = consoleSurface.getY() + 12.0f;
+    const float dividerBottom = consoleSurface.getBottom() - 12.0f;
+    drawGuide(leftChannel.getRight() + 5.0f, dividerTop, dividerBottom, juce::Colours::white, 0.055f);
+    drawGuide(centerBay.getX() - 5.0f, dividerTop, dividerBottom, juce::Colours::white, 0.040f);
+    drawGuide(centerBay.getRight() + 5.0f, dividerTop, dividerBottom, juce::Colours::white, 0.040f);
+    drawGuide(rightChannel.getX() - 5.0f, dividerTop, dividerBottom, juce::Colours::white, 0.055f);
+    drawGuide(static_cast<float>(trim1Slider.getBounds().getCentreX()),
+              leftChannel.getY() + 16.0f, leftChannel.getBottom() - 14.0f, blue, 0.08f);
+    drawGuide(static_cast<float>(masterSlider.getBounds().getCentreX()),
+              centerBay.getY() + 14.0f, centerBay.getBottom() - 42.0f, green, 0.08f);
+    drawGuide(static_cast<float>(trim2Slider.getBounds().getCentreX()),
+              rightChannel.getY() + 16.0f, rightChannel.getBottom() - 14.0f, orange, 0.08f);
+
+    auto titleGuideY = static_cast<float>(masterLabel.getBottom() + 6);
+    g.setColour(juce::Colours::white.withAlpha(0.028f));
+    g.drawHorizontalLine(static_cast<int>(titleGuideY), 18.0f, static_cast<float>(getWidth() - 18));
+
+    const float lowerTop = static_cast<float>(resetBay.getY()) - 10.0f;
+    g.setColour(juce::Colours::white.withAlpha(0.024f));
+    g.drawHorizontalLine(static_cast<int>(lowerTop), 18.0f, static_cast<float>(getWidth() - 18));
+    g.setColour(juce::Colours::black.withAlpha(0.18f));
+    g.drawHorizontalLine(static_cast<int>(lowerTop + 1.0f), 18.0f, static_cast<float>(getWidth() - 18));
+
+    auto recordGlow = recordSlotBounds_.toFloat().reduced(6.0f, 2.0f);
+    juce::ColourGradient recordFill(CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue).withAlpha(0.030f),
+                                    recordGlow.getCentre(),
+                                    juce::Colours::transparentBlack,
+                                    recordGlow.getBottomLeft(),
+                                    true);
+    g.setGradientFill(recordFill);
+    g.fillRoundedRectangle(recordGlow, 8.0f);
+
+    auto bottomGlow = inner.removeFromBottom(118.0f).reduced(12.0f, 0.0f);
+    juce::ColourGradient lowerFill(juce::Colours::white.withAlpha(0.018f), bottomGlow.getTopLeft(),
+                                   juce::Colours::transparentWhite, bottomGlow.getBottomLeft(), false);
+    g.setGradientFill(lowerFill);
+    g.fillRoundedRectangle(bottomGlow, 12.0f);
+}
+
+juce::Rectangle<int> MixerPanel::getRecordSlotBounds() const
+{
+    return recordSlotBounds_;
 }
 
 void MixerPanel::resized()
 {
     auto area = getLocalBounds().reduced(8);
     const int labelH = 16;
+    const bool compact = getHeight() < 640;
 
     auto titleRow = area.removeFromTop(18);
     const int titleGap = 6;
@@ -274,8 +375,8 @@ void MixerPanel::resized()
     auto vuRight = centerLane.removeFromLeft(meterW);
     vuMeter2.setBounds(vuRight.reduced(1, 8));
 
-    lowerSection.removeFromTop(8);
-    auto resetRow = lowerSection.removeFromTop(24);
+    lowerSection.removeFromTop(compact ? 6 : 8);
+    auto resetRow = lowerSection.removeFromTop(compact ? 22 : 24);
     const int resetGap = 4;
     const int resetWidth = (resetRow.getWidth() - resetGap * 2) / 3;
     resetEq1Button.setBounds(resetRow.removeFromLeft(resetWidth));
@@ -284,10 +385,10 @@ void MixerPanel::resized()
     resetRow.removeFromLeft(resetGap);
     resetEq2Button.setBounds(resetRow);
 
-    lowerSection.removeFromTop(6);
+    lowerSection.removeFromTop(compact ? 4 : 6);
 
     // Crossfader curve buttons
-    auto curveRow = lowerSection.removeFromTop(20);
+    auto curveRow = lowerSection.removeFromTop(compact ? 18 : 20);
     const int curveGap = 3;
     const int curveW = (curveRow.getWidth() - curveGap * 2) / 3;
     curveLinearButton.setBounds(curveRow.removeFromLeft(curveW));
@@ -296,8 +397,13 @@ void MixerPanel::resized()
     curveRow.removeFromLeft(curveGap);
     curveCutButton.setBounds(curveRow);
 
-    lowerSection.removeFromTop(4);
-    crossfader.setBounds(lowerSection.removeFromTop(28).reduced(2, 2));
+    lowerSection.removeFromTop(compact ? 3 : 4);
+    crossfader.setBounds(lowerSection.removeFromTop(compact ? 24 : 28).reduced(2, 2));
+
+    lowerSection.removeFromTop(compact ? 4 : 6);
+    const int recordSlotHeight = juce::jmax(22, compact ? 22 : 26);
+    recordSlotBounds_ = lowerSection.removeFromTop(juce::jmin(recordSlotHeight, lowerSection.getHeight()))
+                                    .reduced(4, 0);
 }
 
 //==============================================================================

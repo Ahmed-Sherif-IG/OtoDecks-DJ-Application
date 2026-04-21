@@ -20,10 +20,9 @@ public:
     {
         auto bounds = getLocalBounds().toFloat();
 
-        // Clip LED at top (6px high)
-        const float ledH = 6.0f;
-        auto ledRect = bounds.removeFromTop(ledH + 2.0f);
-        ledRect = ledRect.reduced(1.0f, 0.0f).withHeight(ledH);
+        const float ledH = 4.0f;
+        auto ledRect = bounds.removeFromTop(ledH + 3.0f);
+        ledRect = ledRect.reduced(2.0f, 0.0f).withHeight(ledH);
         if (clipped_)
         {
             g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentRedValue));
@@ -39,20 +38,20 @@ public:
             g.drawRoundedRectangle(ledRect, 2.0f, 0.8f);
         }
 
-        auto frame = bounds.reduced(1.0f);
         const float level = juce::jlimit(0.0f, 1.0f, getLevel ? getLevel() : 0.0f);
         const float visualLevel = std::pow(level, 0.72f);
 
-        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
-        g.fillRoundedRectangle(frame, 8.0f);
-        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue));
-        g.drawRoundedRectangle(frame, 8.0f, 1.0f);
+        auto rail = bounds.reduced(3.0f, 1.0f);
+        g.setColour(juce::Colours::black.withAlpha(0.22f));
+        g.fillRoundedRectangle(rail, 4.0f);
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.58f));
+        g.drawRoundedRectangle(rail, 4.0f, 0.8f);
 
-        auto inner = frame.reduced(4.0f);
-        for (int i = 1; i < 8; ++i)
+        auto inner = rail.reduced(1.5f, 2.5f);
+        for (int i = 1; i < 10; ++i)
         {
-            const float y = inner.getY() + inner.getHeight() * (static_cast<float>(i) / 8.0f);
-            g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.45f));
+            const float y = inner.getY() + inner.getHeight() * (static_cast<float>(i) / 10.0f);
+            g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.22f));
             g.drawHorizontalLine(static_cast<int>(y), inner.getX(), inner.getRight());
         }
 
@@ -63,7 +62,7 @@ public:
         const float fillHeight = inner.getHeight() * visualLevel;
         auto fill = inner.removeFromBottom(fillHeight);
         g.setGradientFill(meterGradient);
-        g.fillRoundedRectangle(fill, 5.0f);
+        g.fillRoundedRectangle(fill, 2.5f);
 
         const float visualPeak = std::pow(peakLevel_, 0.72f);
         const float peakY = inner.getY() + (1.0f - visualPeak) * inner.getHeight();

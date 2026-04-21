@@ -56,6 +56,9 @@ private:
     void alignBeatPhaseToOtherDeck();
     void togglePitchNudge(int direction);
     void refreshNudgeButtons();
+    void updateTitleMarquee();
+    float measureTitleTextWidth() const;
+    void resetTitleMarquee();
     double speedSliderValueToRatio() const;
     double speedRatioToSliderValue(double ratio) const;
     juce::String formatTempoPercent() const;
@@ -130,6 +133,10 @@ private:
     std::vector<double> tapTimes_;
     double tempoRangePercent_ = 16.0;
     int pitchNudgeDirection_ = 0;
+    float titleScrollOffset_ = 0.0f;
+    float titleTextWidth_ = 0.0f;
+    int titlePauseTicks_ = 24;
+    bool titleNeedsMarquee_ = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DeckGUI)
 };

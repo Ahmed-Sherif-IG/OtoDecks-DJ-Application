@@ -17,29 +17,64 @@ WaveformDisplay::~WaveformDisplay()
 void WaveformDisplay::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
+    const float outerRadius = 10.0f;
 
-    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelRaisedColourValue).brighter(0.06f),
+    juce::ColourGradient background(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.02f),
                                     bounds.getTopLeft(),
-                                    juce::Colour(0xFF04070E),
+                                    juce::Colour(0xFF03060C),
                                     bounds.getBottomLeft(),
                                     false);
     g.setGradientFill(background);
-    g.fillRoundedRectangle(bounds, 14.0f);
+    g.fillRoundedRectangle(bounds, outerRadius);
 
-    auto screen = bounds.reduced(2.0f);
-    g.setColour(juce::Colour(0xFF030508).withAlpha(0.60f));
-    g.fillRoundedRectangle(screen, 12.0f);
+    auto screen = bounds.reduced(1.5f);
+    juce::ColourGradient screenFill(juce::Colour(0xFF050911).withAlpha(0.96f), screen.getTopLeft(),
+                                    juce::Colour(0xFF010203).withAlpha(0.99f), screen.getBottomLeft(), false);
+    g.setGradientFill(screenFill);
+    g.fillRoundedRectangle(screen, outerRadius - 1.2f);
 
-    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
-    g.drawRoundedRectangle(bounds.reduced(0.5f), 14.0f, 1.0f);
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.72f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), outerRadius, 0.9f);
 
-    auto inner = bounds.reduced(10.0f, 12.0f);
+    auto bezel = screen.reduced(8.0f, 9.0f);
+    auto titleStrip = bezel.removeFromTop(18.0f);
+    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue).brighter(0.24f).withAlpha(0.85f));
+    g.setFont(juce::Font(juce::FontOptions(10.0f).withStyle("Bold")));
+    g.drawText("WAVEFORM DISPLAY", titleStrip.toNearestInt(), juce::Justification::centredLeft, false);
+
+    auto topStatus = titleStrip.removeFromRight(88.0f);
+    g.setColour(waveformColour.withAlpha(fileLoaded ? 0.80f : 0.34f));
+    g.drawText(fileLoaded ? "TRACK READY" : "NO TRACK", topStatus.toNearestInt(), juce::Justification::centredRight, false);
+
+    auto inner = screen.reduced(10.0f, 12.0f);
+    inner.removeFromTop(14.0f);
 
     if (!fileLoaded)
     {
-        g.setFont(juce::Font(juce::FontOptions(16.0f).withStyle("Bold")));
-        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue));
-        g.drawText("Drop or Load a Track", inner.toNearestInt(), juce::Justification::centred, true);
+        auto centerArea = inner.reduced(12.0f, 6.0f);
+        auto iconArea = centerArea.removeFromTop(42.0f);
+        iconArea.removeFromBottom(8.0f);
+
+        juce::Path icon;
+        const float cx = iconArea.getCentreX();
+        const float cy = iconArea.getCentreY();
+        icon.startNewSubPath(cx - 28.0f, cy + 10.0f);
+        icon.lineTo(cx - 10.0f, cy - 6.0f);
+        icon.lineTo(cx + 2.0f, cy + 4.0f);
+        icon.lineTo(cx + 18.0f, cy - 14.0f);
+        icon.lineTo(cx + 30.0f, cy + 10.0f);
+        g.setColour(waveformColour.withAlpha(0.48f));
+        g.strokePath(icon, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+        g.setFont(juce::Font(juce::FontOptions(17.0f).withStyle("Bold")));
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue).withAlpha(0.74f));
+        g.drawText("Drop or Load a Track", centerArea.removeFromTop(28.0f).toNearestInt(),
+                   juce::Justification::centred, true);
+
+        g.setFont(juce::Font(juce::FontOptions(11.5f)));
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue).withAlpha(0.92f));
+        g.drawText("The deck display will show waveform, cue, loop, and beat markers here.",
+                   centerArea.removeFromTop(24.0f).toNearestInt(), juce::Justification::centred, true);
         return;
     }
 
@@ -55,6 +90,13 @@ void WaveformDisplay::paint(juce::Graphics& g)
         g.drawRoundedRectangle(overview, 6.0f, 1.0f);
 
         auto overviewWave = overview.reduced(5.0f, 4.0f);
+        g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue).withAlpha(0.75f));
+        g.setFont(juce::Font(juce::FontOptions(9.0f).withStyle("Bold")));
+        g.drawText("OVERVIEW", juce::Rectangle<int>(static_cast<int>(overview.getX()) + 6,
+                                                    static_cast<int>(overview.getY()) + 2,
+                                                    58, 10),
+                   juce::Justification::centredLeft, false);
+
         if (loopActive_ && loopEndRel_ > loopStartRel_)
         {
             auto loopRect = juce::Rectangle<float>(
@@ -105,7 +147,7 @@ void WaveformDisplay::paint(juce::Graphics& g)
     g.setColour(waveformColour.withAlpha(0.98f));
     audioThumb.drawChannel(g, inner.toNearestInt(), 0.0, audioThumb.getTotalLength(), 0, 0.95f);
 
-    g.setColour(waveformColour.withAlpha(0.10f));
+    g.setColour(waveformColour.withAlpha(0.08f));
     g.fillRect(inner.withHeight(inner.getHeight() * 0.5f).withY(inner.getCentreY() - inner.getHeight() * 0.25f));
 
     if (!beatPositions_.empty())
@@ -148,10 +190,10 @@ void WaveformDisplay::paint(juce::Graphics& g)
     g.drawLine(px, inner.getY(), px, inner.getBottom(), 2.2f);
     g.fillEllipse(px - 5.5f, inner.getCentreY() - 5.5f, 11.0f, 11.0f);
 
-    juce::ColourGradient gloss(juce::Colours::white.withAlpha(0.07f), bounds.getTopLeft(),
+    juce::ColourGradient gloss(juce::Colours::white.withAlpha(0.035f), bounds.getTopLeft(),
                                juce::Colours::transparentBlack, bounds.getCentre(), false);
     g.setGradientFill(gloss);
-    g.fillRoundedRectangle(bounds.reduced(1.0f), 12.0f);
+    g.fillRoundedRectangle(bounds.reduced(1.0f), outerRadius - 1.0f);
 
     // Hover time tooltip
     if (mouseInside_ && hoverX_ >= 0 && fileLoaded && totalDuration_ > 0.0)

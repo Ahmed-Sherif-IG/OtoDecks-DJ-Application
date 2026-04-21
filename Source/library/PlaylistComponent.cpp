@@ -11,18 +11,18 @@ namespace
 PlaylistComponent::PlaylistComponent()
 {
     auto& header = tableComponent.getHeader();
-    header.addColumn("Title",    ColTitle,    260, 100, -1, juce::TableHeaderComponent::defaultFlags);
-    header.addColumn("Artist",   ColArtist,   170, 80, -1, juce::TableHeaderComponent::defaultFlags);
-    header.addColumn("Duration", ColDuration,  84, 60, -1, juce::TableHeaderComponent::defaultFlags);
+    header.addColumn("Title",    ColTitle,    280, 120, -1, juce::TableHeaderComponent::defaultFlags);
+    header.addColumn("Artist",   ColArtist,   180, 90, -1, juce::TableHeaderComponent::defaultFlags);
+    header.addColumn("Duration", ColDuration,  88, 60, -1, juce::TableHeaderComponent::defaultFlags);
     header.addColumn("BPM",      ColBPM,       68, 50, -1, juce::TableHeaderComponent::defaultFlags);
-    header.addColumn("Actions",  ColLoad,     220, 160, -1, juce::TableHeaderComponent::notSortable);
+    header.addColumn("Actions",  ColLoad,     210, 160, -1, juce::TableHeaderComponent::notSortable);
     header.setSortColumnId(ColTitle, true);
 
     header.setColour(juce::TableHeaderComponent::backgroundColourId, CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue));
     header.setColour(juce::TableHeaderComponent::textColourId,       CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
 
     tableComponent.setModel(this);
-    tableComponent.setRowHeight(28);
+    tableComponent.setRowHeight(30);
     tableComponent.setColour(juce::ListBox::backgroundColourId, CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue));
     tableComponent.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible(tableComponent);
@@ -77,6 +77,7 @@ PlaylistComponent::~PlaylistComponent()
 void PlaylistComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat().reduced(1.0f);
+    const float radius = 15.0f;
 
     juce::DropShadow shadow(juce::Colours::black.withAlpha(0.38f), 16, { 0, 8 });
     shadow.drawForRectangle(g, bounds.toNearestInt());
@@ -87,34 +88,92 @@ void PlaylistComponent::paint(juce::Graphics& g)
                                     bounds.getBottomLeft(),
                                     false);
     g.setGradientFill(background);
-    g.fillRoundedRectangle(bounds, 18.0f);
+    g.fillRoundedRectangle(bounds, radius);
 
-    auto topGlow = bounds.removeFromTop(42.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.035f));
-    g.fillRoundedRectangle(topGlow, 18.0f);
+    auto inner = bounds.reduced(1.5f);
+    juce::ColourGradient surface(CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).brighter(0.06f),
+                                 inner.getTopLeft(),
+                                 CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).darker(0.04f),
+                                 inner.getBottomLeft(),
+                                 false);
+    g.setGradientFill(surface);
+    g.fillRoundedRectangle(inner, radius - 1.5f);
+
+    juce::ColourGradient gloss(juce::Colours::white.withAlpha(0.028f), inner.getTopLeft(),
+                               juce::Colours::transparentBlack, inner.getCentre(), false);
+    g.setGradientFill(gloss);
+    g.fillRoundedRectangle(inner, radius - 1.5f);
+
+    auto accentStrip = inner.removeFromTop(4.0f).reduced(16.0f, 0.0f);
+    juce::ColourGradient accentFill(CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.95f),
+                                    accentStrip.getTopLeft(),
+                                    CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).darker(0.35f),
+                                    accentStrip.getTopRight(), false);
+    g.setGradientFill(accentFill);
+    g.fillRoundedRectangle(accentStrip, 2.0f);
 
     g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::outlineColourValue).withAlpha(0.95f));
-    g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 18.0f, 1.2f);
+    g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), radius, 1.1f);
+
+    auto controlsBand = addTracksButton.getBounds().getUnion(searchBox.getBounds())
+                                           .getUnion(durationMaxBox.getBounds())
+                                           .getUnion(trackCountLabel.getBounds())
+                                           .expanded(6, 6).toFloat();
+    g.setColour(juce::Colours::black.withAlpha(0.10f));
+    g.drawRoundedRectangle(controlsBand, 10.0f, 0.9f);
+    g.setColour(juce::Colours::white.withAlpha(0.030f));
+    g.drawRoundedRectangle(controlsBand.reduced(0.7f), 9.3f, 0.6f);
+
+    auto tableBand = tableComponent.getBounds().toFloat().expanded(4.0f, 4.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.12f));
+    g.drawRoundedRectangle(tableBand, 10.0f, 0.9f);
+    g.setColour(juce::Colours::white.withAlpha(0.024f));
+    g.drawRoundedRectangle(tableBand.reduced(0.7f), 9.3f, 0.6f);
 }
 
 void PlaylistComponent::resized()
 {
-    auto area   = getLocalBounds().reduced(12);
-    auto topRow = area.removeFromTop(40);
+    auto area = getLocalBounds().reduced(14, 12);
+    const bool compact = getWidth() < 1160;
+    const int topHeight = compact ? 74 : 40;
+    auto topArea = area.removeFromTop(topHeight);
 
-    addTracksButton.setBounds(topRow.removeFromLeft(148));
-    topRow.removeFromLeft(10);
-    searchBox.setBounds(topRow.removeFromLeft(310));
-    topRow.removeFromLeft(8);
-    bpmMinBox.setBounds(topRow.removeFromLeft(72));
-    topRow.removeFromLeft(6);
-    bpmMaxBox.setBounds(topRow.removeFromLeft(72));
-    topRow.removeFromLeft(6);
-    durationMaxBox.setBounds(topRow.removeFromLeft(76));
-    topRow.removeFromLeft(10);
-    trackCountLabel.setBounds(topRow);
+    if (compact)
+    {
+        auto firstRow = topArea.removeFromTop(34);
+        addTracksButton.setBounds(firstRow.removeFromLeft(140));
+        firstRow.removeFromLeft(10);
+        trackCountLabel.setBounds(firstRow.removeFromRight(128));
+        firstRow.removeFromRight(8);
+        searchBox.setBounds(firstRow);
 
-    area.removeFromTop(8);
+        topArea.removeFromTop(8);
+        auto secondRow = topArea.removeFromTop(30);
+        const int filterGap = 8;
+        const int filterW = (secondRow.getWidth() - filterGap * 2) / 3;
+        bpmMinBox.setBounds(secondRow.removeFromLeft(filterW));
+        secondRow.removeFromLeft(filterGap);
+        bpmMaxBox.setBounds(secondRow.removeFromLeft(filterW));
+        secondRow.removeFromLeft(filterGap);
+        durationMaxBox.setBounds(secondRow);
+    }
+    else
+    {
+        auto topRow = topArea.removeFromTop(40);
+        addTracksButton.setBounds(topRow.removeFromLeft(148));
+        topRow.removeFromLeft(10);
+        searchBox.setBounds(topRow.removeFromLeft(320));
+        topRow.removeFromLeft(10);
+        bpmMinBox.setBounds(topRow.removeFromLeft(72));
+        topRow.removeFromLeft(6);
+        bpmMaxBox.setBounds(topRow.removeFromLeft(72));
+        topRow.removeFromLeft(6);
+        durationMaxBox.setBounds(topRow.removeFromLeft(82));
+        topRow.removeFromLeft(10);
+        trackCountLabel.setBounds(topRow);
+    }
+
+    area.removeFromTop(compact ? 10 : 8);
     tableComponent.setBounds(area);
 }
 
@@ -159,9 +218,9 @@ void PlaylistComponent::paintRowBackground(juce::Graphics& g,
                                            int width, int height,
                                            bool rowIsSelected)
 {
-    const auto evenColour    = CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).brighter(0.03f);
-    const auto oddColour     = CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).darker(0.10f);
-    const auto selectedColor = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.24f);
+    const auto evenColour    = CustomLookAndFeel::colour(CustomLookAndFeel::panelColourValue).brighter(0.015f);
+    const auto oddColour     = CustomLookAndFeel::colour(CustomLookAndFeel::panelAltColourValue).darker(0.05f);
+    const auto selectedColor = CustomLookAndFeel::colour(CustomLookAndFeel::accentBlueValue).withAlpha(0.18f);
 
     // Check if this row is the now-playing track
     bool isNowPlaying = false;
@@ -179,13 +238,14 @@ void PlaylistComponent::paintRowBackground(juce::Graphics& g,
     const auto baseColour = rowIsSelected ? selectedColor : ((rowNumber % 2 == 0) ? evenColour : oddColour);
     g.fillAll(baseColour);
 
+    g.setColour(juce::Colours::white.withAlpha(0.020f));
+    g.drawHorizontalLine(height - 1, 12.0f, static_cast<float>(width - 12));
+
     if (isNowPlaying)
     {
-        // Accent underline at bottom of row
         g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentGreenValue).withAlpha(0.85f));
-        g.fillRect(0, height - 2, width, 2);
+        g.fillRect(0, 0, 3, height);
 
-        // Subtle green tint overlay
         g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::accentGreenValue).withAlpha(0.08f));
         g.fillAll();
     }
@@ -239,10 +299,12 @@ void PlaylistComponent::paintCell(juce::Graphics& g,
             return;
     }
 
-    g.setColour(CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue));
-    g.setFont(juce::Font(juce::FontOptions(columnId == ColTitle ? 13.5f : 12.5f)
+    const auto primary = CustomLookAndFeel::colour(CustomLookAndFeel::textColourValue);
+    const auto secondary = CustomLookAndFeel::colour(CustomLookAndFeel::mutedTextColourValue).brighter(0.16f);
+    g.setColour(columnId == ColTitle ? primary : secondary);
+    g.setFont(juce::Font(juce::FontOptions(columnId == ColTitle ? 13.0f : 12.0f)
                          .withStyle(columnId == ColTitle ? "Bold" : "Regular")));
-    g.drawText(text, juce::Rectangle<int>(6, 0, width - 12, height), just, true);
+    g.drawText(text, juce::Rectangle<int>(columnId == ColTitle ? 10 : 6, 0, width - 14, height), just, true);
 }
 
 juce::Component* PlaylistComponent::refreshComponentForCell(int rowNumber,

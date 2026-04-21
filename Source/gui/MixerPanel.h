@@ -18,6 +18,7 @@ public:
     void resized() override;
     void sliderValueChanged(juce::Slider*) override;
     void buttonClicked(juce::Button*) override;
+    juce::Rectangle<int> getRecordSlotBounds() const;
 
 private:
     void applyCrossfader(double pos);  // pos in [0,1]: 0=full D1, 1=full D2
@@ -70,6 +71,7 @@ private:
     // VU meters
     VUMeter vuMeter1;
     VUMeter vuMeter2;
+    juce::Rectangle<int> recordSlotBounds_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixerPanel)
 };
