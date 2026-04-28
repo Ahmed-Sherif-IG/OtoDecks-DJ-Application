@@ -17,5 +17,9 @@ x64/
 Recordings/*.wav
 !Recordings/.gitkeep
 
+# Local update notes
+UI update.md
+update.md
+
 # Mac / Linux junk
 .DS_Store
